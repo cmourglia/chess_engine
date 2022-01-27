@@ -4,10 +4,7 @@ use crate::bitboard::*;
 use crate::codegen::get_square;
 use crate::Side;
 
-const BISHOP_OCCUPANCY_COUNTS: [usize; 64] = generate_bishop_occupancies();
-const ROOK_OCCUPANCY_COUNTS: [usize; 64] = generate_rook_occupancies();
-
-const fn mask_pawn_attacks(square: i32, side: Side) -> u64 {
+fn mask_pawn_attacks(square: i32, side: Side) -> u64 {
     let mut attacks = 0u64;
     let bitboard = as_bitboard(square);
 
@@ -35,7 +32,7 @@ const fn mask_pawn_attacks(square: i32, side: Side) -> u64 {
     attacks
 }
 
-const fn mask_knight_attacks(square: i32) -> u64 {
+fn mask_knight_attacks(square: i32) -> u64 {
     let mut attacks = 0u64;
     let bitboard = as_bitboard(square);
 
@@ -59,7 +56,7 @@ const fn mask_knight_attacks(square: i32) -> u64 {
     attacks
 }
 
-const fn mask_king_attacks(square: i32) -> u64 {
+fn mask_king_attacks(square: i32) -> u64 {
     let mut attacks = 0u64;
     let bitboard = as_bitboard(square);
 
@@ -79,311 +76,213 @@ const fn mask_king_attacks(square: i32) -> u64 {
     attacks
 }
 
-const fn mask_bishop_attacks(square: i32) -> u64 {
+pub fn mask_bishop_attacks(square: i32) -> u64 {
     let mut attacks = 0u64;
 
     let rank = square / 8;
     let file = square % 8;
 
-    let mut i = rank - 1;
-    let mut j = file - 1;
-    while i >= 1 && j >= 1 {
+    for (i, j) in (1..rank).rev().zip((1..file).rev()) {
         attacks = set_bit(attacks, get_square(i, j));
-        i -= 1;
-        j -= 1;
     }
 
-    let mut i = rank - 1;
-    let mut j = file + 1;
-    while i >= 1 && j < 7 {
+    for (i, j) in (1..rank).rev().zip(file + 1..7) {
         attacks = set_bit(attacks, get_square(i, j));
-        i -= 1;
-        j += 1;
     }
 
-    let mut i = rank + 1;
-    let mut j = file - 1;
-    while i < 7 && j >= 1 {
+    for (i, j) in (rank + 1..7).zip((1..file).rev()) {
         attacks = set_bit(attacks, get_square(i, j));
-        i += 1;
-        j -= 1;
     }
 
-    let mut i = rank + 1;
-    let mut j = file + 1;
-    while i < 7 && j < 7 {
+    for (i, j) in (rank + 1..7).zip(file + 1..7) {
         attacks = set_bit(attacks, get_square(i, j));
-        i += 1;
-        j += 1;
     }
 
     attacks
 }
 
-pub const fn mask_rook_attacks(square: i32) -> u64 {
+fn mask_rook_attacks(square: i32) -> u64 {
     let mut attacks = 0u64;
 
     let rank = square / 8;
     let file = square % 8;
 
-    let mut i = rank - 1;
-    while i >= 1 {
+    for i in (1..rank).rev() {
         attacks = set_bit(attacks, get_square(i, file));
-        i -= 1;
     }
 
-    let mut i = file - 1;
-    while i >= 1 {
+    for i in (1..file).rev() {
         attacks = set_bit(attacks, get_square(rank, i));
-        i -= 1;
     }
 
-    let mut i = rank + 1;
-    while i < 7 {
+    for i in rank + 1..7 {
         attacks = set_bit(attacks, get_square(i, file));
-        i += 1;
     }
 
-    let mut i = file + 1;
-    while i < 7 {
+    for i in file + 1..7 {
         attacks = set_bit(attacks, get_square(rank, i));
-        i += 1;
     }
 
     attacks
 }
 
-pub const fn bishop_attacks_on_the_fly(square: i32, blocker: u64) -> u64 {
+fn bishop_attacks_on_the_fly(square: i32, blocker: u64) -> u64 {
     let mut attacks = 0u64;
 
     let rank = square / 8;
     let file = square % 8;
 
-    let mut i = rank - 1;
-    let mut j = file - 1;
-    while i >= 0 && j >= 0 {
+    for (i, j) in (0..rank).rev().zip((0..file).rev()) {
         let curr_square = get_square(i, j);
         attacks = set_bit(attacks, curr_square);
         if get_bit(blocker, curr_square) {
             break;
         }
-
-        i -= 1;
-        j -= 1;
     }
 
-    let mut i = rank - 1;
-    let mut j = file + 1;
-    while i >= 0 && j <= 7 {
+    for (i, j) in (0..rank).rev().zip(file + 1..8) {
         let curr_square = get_square(i, j);
         attacks = set_bit(attacks, curr_square);
         if get_bit(blocker, curr_square) {
             break;
         }
-
-        i -= 1;
-        j += 1;
     }
 
-    let mut i = rank + 1;
-    let mut j = file - 1;
-    while i <= 7 && j >= 0 {
+    for (i, j) in (rank + 1..8).zip((0..file).rev()) {
         let curr_square = get_square(i, j);
         attacks = set_bit(attacks, curr_square);
         if get_bit(blocker, curr_square) {
             break;
         }
-
-        i += 1;
-        j -= 1;
     }
 
-    let mut i = rank + 1;
-    let mut j = file + 1;
-    while i <= 7 && j <= 7 {
+    for (i, j) in (rank + 1..8).zip(file + 1..8) {
         let curr_square = get_square(i, j);
         attacks = set_bit(attacks, curr_square);
         if get_bit(blocker, curr_square) {
             break;
         }
-
-        i += 1;
-        j += 1;
     }
 
     attacks
 }
 
-pub const fn rook_attacks_on_the_fly(square: i32, blocker: u64) -> u64 {
+fn rook_attacks_on_the_fly(square: i32, blocker: u64) -> u64 {
     let mut attacks = 0u64;
 
     let rank = square / 8;
     let file = square % 8;
 
-    let mut i = rank - 1;
-    while i >= 0 {
+    for i in (0..rank).rev() {
         let curr_square = get_square(i, file);
         attacks = set_bit(attacks, curr_square);
         if get_bit(blocker, curr_square) {
             break;
         }
-        i -= 1;
     }
 
-    let mut i = file - 1;
-    while i >= 0 {
+    for i in (0..file).rev() {
         let curr_square = get_square(rank, i);
         attacks = set_bit(attacks, curr_square);
         if get_bit(blocker, curr_square) {
             break;
         }
-        i -= 1;
     }
 
-    let mut i = rank + 1;
-    while i <= 7 {
+    for i in rank + 1..8 {
         let curr_square = get_square(i, file);
         attacks = set_bit(attacks, curr_square);
         if get_bit(blocker, curr_square) {
             break;
         }
-        i += 1;
     }
 
-    let mut i = file + 1;
-    while i <= 7 {
+    for i in file + 1..8 {
         let curr_square = get_square(rank, i);
         attacks = set_bit(attacks, curr_square);
         if get_bit(blocker, curr_square) {
             break;
         }
-        i += 1;
     }
 
     attacks
 }
 
-const fn generate_pawn_attacks() -> [[u64; 64]; 2] {
+fn generate_pawn_attacks() -> [[u64; 64]; 2] {
     let mut result = [[0u64; 64]; 2];
 
-    let mut square = 0;
-    while square < 64 {
+    for square in 0..64 {
         result[0][square] = mask_pawn_attacks(square as i32, Side::White);
         result[1][square] = mask_pawn_attacks(square as i32, Side::Black);
-        square += 1;
     }
 
     result
 }
 
-const fn generate_knight_attacks() -> [u64; 64] {
+fn generate_knight_attacks() -> [u64; 64] {
     let mut result = [0u64; 64];
 
-    let mut square = 0;
-    while square < 64 {
+    for square in 0..64 {
         result[square] = mask_knight_attacks(square as i32);
-        square += 1;
     }
 
     result
 }
 
-const fn generate_king_attacks() -> [u64; 64] {
+fn generate_king_attacks() -> [u64; 64] {
     let mut result = [0u64; 64];
 
-    let mut square = 0;
-    while square < 64 {
+    for square in 0..64 {
         result[square] = mask_king_attacks(square as i32);
-        square += 1;
     }
 
     result
 }
 
-const fn generate_bishop_occupancies() -> [usize; 64] {
+fn generate_bishop_occupancies() -> [usize; 64] {
     let mut result = [0usize; 64];
 
-    let mut square = 0;
-    while square < 64 {
+    for square in 0..64 {
         result[square] = bit_count(mask_bishop_attacks(square as i32));
-        square += 1;
     }
 
     result
 }
 
-const fn generate_rook_occupancies() -> [usize; 64] {
+fn generate_rook_occupancies() -> [usize; 64] {
     let mut result = [0usize; 64];
 
-    let mut square = 0;
-    while square < 64 {
+    for square in 0..64 {
         result[square] = bit_count(mask_rook_attacks(square as i32));
-        square += 1;
     }
 
     result
 }
 
-const fn set_occupancy(index: usize, bits_in_mask: usize, attack_mask: u64) -> u64 {
+fn set_occupancy(index: usize, bits_in_mask: usize, attack_mask: u64) -> u64 {
     let mut occupancy = 0u64;
     let mut mask = attack_mask;
 
-    // Loop over the range of bits within attack mask
-    let mut count = 0;
-    while count < bits_in_mask {
+    for count in 0..bits_in_mask {
         let square = least_significant_bit_index(mask) as i32;
         mask = pop_bit(mask, square);
 
         if index & (1 << count) != 0 {
             occupancy = set_bit(occupancy, square);
         }
-        count += 1;
     }
 
     occupancy
 }
 
-const fn get_random_u32_number(random_state: u32) -> u32 {
-    let mut number = random_state;
-
-    // xorshift32
-    number ^= number << 13;
-    number ^= number >> 15;
-    number ^= number << 5;
-
-    number
-}
-
-const fn get_random_u64_number(random_state: u32) -> (u64, u32) {
-    let r1 = get_random_u32_number(random_state);
-    let r2 = get_random_u32_number(r1);
-    let r3 = get_random_u32_number(r2);
-    let r4 = get_random_u32_number(r3);
-
-    let n1 = r1 as u64 & 0xFFFFu64;
-    let n2 = r2 as u64 & 0xFFFFu64;
-    let n3 = r3 as u64 & 0xFFFFu64;
-    let n4 = r4 as u64 & 0xFFFFu64;
-
-    let number = n1 | (n2 << 16) | (n3 << 32) | (n4 << 48);
-
-    (number, r4)
-}
-
-const fn next_magic_candidate(random_state: u32) -> (u64, u32) {
-    let (n1, r1) = get_random_u64_number(random_state);
-    let (n2, r2) = get_random_u64_number(r1);
-    let (n3, r3) = get_random_u64_number(r2);
-
-    (n1 & n2 & n3, r3)
-}
-
-const fn find_magic_number(
+fn find_magic_number(
     random_state: u32,
     square: i32,
     relevant_bits: usize,
     is_bishop: bool,
 ) -> (u64, u32) {
+    use crate::rand::next_magic_candidate;
+
     // FIXME: I do not like that
     let mut occupancies = [0u64; 4096];
     let mut attacks = [0u64; 4096];
@@ -398,16 +297,13 @@ const fn find_magic_number(
 
     let occupancy_indices = 1 << relevant_bits;
 
-    let mut index = 0;
-    while index < occupancy_indices {
+    for index in 0..occupancy_indices {
         occupancies[index] = set_occupancy(index, relevant_bits, attack_mask);
         attacks[index] = if is_bishop {
             bishop_attacks_on_the_fly(square, occupancies[index])
         } else {
             rook_attacks_on_the_fly(square, occupancies[index])
         };
-
-        index += 1;
     }
 
     loop {
@@ -423,8 +319,7 @@ const fn find_magic_number(
         used_attacks = [0u64; 4096];
         let mut failed = false;
 
-        let mut index = 0;
-        while index < occupancy_indices {
+        for index in 0..occupancy_indices {
             let tested_magic = occupancies[index].wrapping_mul(magic);
             if let Some(magic_index) = tested_magic.checked_shr(64 - relevant_bits as u32) {
                 let magic_index = magic_index as usize;
@@ -440,8 +335,6 @@ const fn find_magic_number(
             if failed {
                 break;
             }
-
-            index += 1;
         }
 
         if !failed {
@@ -450,49 +343,35 @@ const fn find_magic_number(
     }
 }
 
-fn generate_bishop_magic_numbers() -> [u64; 64] {
+fn generate_bishop_magic_numbers(occupancies: &[usize; 64]) -> [u64; 64] {
     let mut result = [0u64; 64];
-    let mut square = 0;
 
     let mut random_state = 1804289383;
 
-    while square < 64 {
+    for square in 0..64 {
         result[square] = {
-            let (magic, rnd) = find_magic_number(
-                random_state,
-                square as i32,
-                BISHOP_OCCUPANCY_COUNTS[square],
-                true,
-            );
+            let (magic, rnd) =
+                find_magic_number(random_state, square as i32, occupancies[square], true);
             random_state = rnd;
             magic
         };
-
-        square += 1;
     }
 
     result
 }
 
-fn generate_rook_magic_numbers() -> [u64; 64] {
+fn generate_rook_magic_numbers(occupancies: &[usize; 64]) -> [u64; 64] {
     let mut result = [0u64; 64];
-    let mut square = 0;
 
     let mut random_state = 1804289383;
 
-    while square < 64 {
+    for square in 0..64 {
         result[square] = {
-            let (magic, rnd) = find_magic_number(
-                random_state,
-                square as i32,
-                ROOK_OCCUPANCY_COUNTS[square],
-                false,
-            );
+            let (magic, rnd) =
+                find_magic_number(random_state, square as i32, occupancies[square], false);
             random_state = rnd;
             magic
         };
-
-        square += 1;
     }
 
     result
@@ -505,7 +384,7 @@ struct MagicNumbers {
 }
 
 impl MagicNumbers {
-    pub fn new() -> Self {
+    pub fn new(occupancies: &Occupancies) -> Self {
         let mut bishop = [0u64; 64];
         let mut random_state = 1804289383;
 
@@ -514,7 +393,7 @@ impl MagicNumbers {
                 let (magic, rnd) = find_magic_number(
                     random_state,
                     square as i32,
-                    BISHOP_OCCUPANCY_COUNTS[square],
+                    occupancies.bishop[square],
                     true,
                 );
                 random_state = rnd;
@@ -526,12 +405,8 @@ impl MagicNumbers {
 
         for square in 0..64 {
             rook[square] = {
-                let (magic, rnd) = find_magic_number(
-                    random_state,
-                    square as i32,
-                    ROOK_OCCUPANCY_COUNTS[square],
-                    false,
-                );
+                let (magic, rnd) =
+                    find_magic_number(random_state, square as i32, occupancies.rook[square], false);
                 random_state = rnd;
                 magic
             };
@@ -562,6 +437,20 @@ impl SlidingMasks {
 }
 
 #[derive(Debug)]
+struct Occupancies {
+    bishop: [usize; 64],
+    rook: [usize; 64],
+}
+
+impl Occupancies {
+    fn new() -> Self {
+        Self {
+            bishop: generate_bishop_occupancies(),
+            rook: generate_rook_occupancies(),
+        }
+    }
+}
+
 pub struct Attacks {
     pub pawn: [[u64; 64]; 2],
     pub knight: [u64; 64],
@@ -571,12 +460,18 @@ pub struct Attacks {
 
     magic_numbers: MagicNumbers,
     sliding_masks: SlidingMasks,
+    occupancies: Occupancies,
+}
 }
 
 impl Attacks {
     pub fn new() -> Self {
-        let magic_numbers = MagicNumbers::new();
+        let occupancies = Occupancies::new();
+        let magic_numbers = MagicNumbers::new(&occupancies);
         let sliding_masks = SlidingMasks::new();
+        let pawn = generate_pawn_attacks();
+        let knight = generate_knight_attacks();
+        let king = generate_king_attacks();
 
         let mut bishop = [[0u64; 512]; 64];
         let mut rook = [[0u64; 4096]; 64];
@@ -589,12 +484,14 @@ impl Attacks {
             for index in 0..bishop_occupancy_indices {
                 let occupancy = set_occupancy(index, bishop_relevant_bit_count, bishop_attack_mask);
                 let magic_index = occupancy.wrapping_mul(magic_numbers.bishop[square])
-                    >> (64 - BISHOP_OCCUPANCY_COUNTS[square]);
+                    >> (64 - occupancies.bishop[square]);
 
                 bishop[square][magic_index as usize] =
                     bishop_attacks_on_the_fly(square as i32, occupancy);
             }
 
+        let mut rook = [[0u64; 4096]; 64];
+        for square in 0..64 {
             let rook_attack_mask = sliding_masks.rook[square];
             let rook_relevant_bit_count = bit_count(rook_attack_mask);
             let rook_occupancy_indices = 1 << rook_relevant_bit_count;
@@ -602,7 +499,7 @@ impl Attacks {
             for index in 0..rook_occupancy_indices {
                 let occupancy = set_occupancy(index, rook_relevant_bit_count, rook_attack_mask);
                 let magic_index = occupancy.wrapping_mul(magic_numbers.rook[square])
-                    >> (64 - ROOK_OCCUPANCY_COUNTS[square]);
+                    >> (64 - occupancies.rook[square]);
 
                 rook[square][magic_index as usize] =
                     rook_attacks_on_the_fly(square as i32, occupancy);
@@ -610,13 +507,14 @@ impl Attacks {
         }
 
         Self {
-            pawn: generate_pawn_attacks(),
-            knight: generate_knight_attacks(),
-            king: generate_king_attacks(),
+            pawn,
+            knight,
+            king,
             bishop,
             rook,
             magic_numbers,
             sliding_masks,
+            occupancies,
         }
     }
 }

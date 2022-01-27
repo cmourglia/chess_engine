@@ -1,5 +1,6 @@
 mod attacks;
 mod bitboard;
+mod rand;
 mod squares;
 
 mod codegen;
