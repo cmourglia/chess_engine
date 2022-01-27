@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::time::{Duration, Instant};
+
 use crate::bitboard::*;
 use crate::codegen::get_square;
 use crate::Side;
@@ -462,20 +464,56 @@ pub struct Attacks {
     sliding_masks: SlidingMasks,
     occupancies: Occupancies,
 }
+
+fn time_as_ms(d: Duration) -> f64 {
+    d.as_micros() as f64 * 1e-3
 }
 
 impl Attacks {
     pub fn new() -> Self {
+        println!("Start generation... ");
+        let timer = Instant::now();
+
         let occupancies = Occupancies::new();
+        let occupancies_time = timer.elapsed();
+        println!("  Occupancies ok ({}ms)... ", time_as_ms(occupancies_time));
+
         let magic_numbers = MagicNumbers::new(&occupancies);
+        let magic_numbers_time = timer.elapsed();
+        println!(
+            "  Magic numbers ok ({}ms)... ",
+            time_as_ms(magic_numbers_time - occupancies_time)
+        );
+
         let sliding_masks = SlidingMasks::new();
+        let sliding_masks_time = timer.elapsed();
+        println!(
+            "  Sliding masks ok ({}ms)... ",
+            time_as_ms(sliding_masks_time - magic_numbers_time)
+        );
+
         let pawn = generate_pawn_attacks();
+        let pawn_time = timer.elapsed();
+        println!(
+            "  Pawn attacks ok ({}ms)... ",
+            time_as_ms(pawn_time - sliding_masks_time)
+        );
+
         let knight = generate_knight_attacks();
+        let knight_time = timer.elapsed();
+        println!(
+            "  Knight attacks ok ({}ms)...",
+            time_as_ms(knight_time - pawn_time)
+        );
+
         let king = generate_king_attacks();
+        let king_time = timer.elapsed();
+        println!(
+            "  King attacks ok ({}ms)...",
+            time_as_ms(king_time - knight_time)
+        );
 
         let mut bishop = [[0u64; 512]; 64];
-        let mut rook = [[0u64; 4096]; 64];
-
         for square in 0..64 {
             let bishop_attack_mask = sliding_masks.bishop[square];
             let bishop_relevant_bit_count = bit_count(bishop_attack_mask);
@@ -489,6 +527,12 @@ impl Attacks {
                 bishop[square][magic_index as usize] =
                     bishop_attacks_on_the_fly(square as i32, occupancy);
             }
+        }
+        let bishop_time = timer.elapsed();
+        println!(
+            "  Bishop attacks ok ({}ms)...",
+            time_as_ms(bishop_time - king_time)
+        );
 
         let mut rook = [[0u64; 4096]; 64];
         for square in 0..64 {
@@ -505,6 +549,11 @@ impl Attacks {
                     rook_attacks_on_the_fly(square as i32, occupancy);
             }
         }
+        let rook_time = timer.elapsed();
+        println!(
+            "  Rook attacks ok ({}ms)...",
+            time_as_ms(rook_time - bishop_time)
+        );
 
         Self {
             pawn,
