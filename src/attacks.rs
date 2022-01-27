@@ -566,4 +566,28 @@ impl Attacks {
             occupancies,
         }
     }
+
+    pub fn get_bishop_attacks(&self, square: i32, occupancy: u64) -> u64 {
+        let mut occupancy_idx = occupancy;
+
+        let index = square as usize;
+
+        occupancy_idx &= self.sliding_masks.bishop[index];
+        occupancy_idx = occupancy_idx.wrapping_mul(self.magic_numbers.bishop[index]);
+        occupancy_idx >>= 64 - self.occupancies.bishop[index];
+
+        self.bishop[index][occupancy_idx as usize]
+    }
+
+    pub fn get_rook_attacks(&self, square: i32, occupancy: u64) -> u64 {
+        let mut occupancy_idx = occupancy;
+
+        let index = square as usize;
+
+        occupancy_idx &= self.sliding_masks.rook[index];
+        occupancy_idx = occupancy_idx.wrapping_mul(self.magic_numbers.rook[index]);
+        occupancy_idx >>= 64 - self.occupancies.rook[index];
+
+        self.rook[index][occupancy_idx as usize]
+    }
 }
