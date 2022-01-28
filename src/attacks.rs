@@ -724,4 +724,8 @@ impl Attacks {
 
         self.rook[index][occupancy_idx as usize]
     }
+
+    pub fn get_queen_attacks(&self, square: i32, occupancy: u64) -> u64 {
+        self.get_bishop_attacks(square, occupancy) | self.get_rook_attacks(square, occupancy)
+    }
 }
