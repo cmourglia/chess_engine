@@ -163,6 +163,7 @@ fn mask_pawn_attacks(square: i32, side: Side) -> u64 {
                 attacks = set_bit(attacks, square + 9);
             }
         }
+        _ => {}
     }
 
     attacks

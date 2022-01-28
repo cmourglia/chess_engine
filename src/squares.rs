@@ -63,6 +63,7 @@ pub const E1: i32 = 60;
 pub const F1: i32 = 61;
 pub const G1: i32 = 62;
 pub const H1: i32 = 63;
+pub const NO_SQUARE: i32 = -1;
 
 pub const CELL_NAMES: [&str; 64] = [
     "A8", "B8", "C8", "D8", "E8", "F8", "G8", "H8", "A7", "B7", "C7", "D7", "E7", "F7", "G7", "H7",
