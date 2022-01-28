@@ -15,6 +15,16 @@ pub const fn as_bitboard(square: i32) -> u64 {
     }
 }
 
+pub fn bitboard_from_squares(squares: Vec<i32>) -> u64 {
+    let mut result = 0u64;
+
+    for square in squares {
+        result |= as_bitboard(square)
+    }
+
+    result
+}
+
 pub const fn get_bit(bitboard: u64, square: i32) -> bool {
     bitboard & as_bitboard(square) != 0
 }
