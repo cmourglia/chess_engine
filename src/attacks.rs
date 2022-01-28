@@ -3,8 +3,142 @@
 use std::time::{Duration, Instant};
 
 use crate::bitboard::*;
+use crate::board::Side;
 use crate::codegen::get_square;
-use crate::Side;
+
+const BISHOP_MAGIC_NUMBERS: [u64; 64] = [
+    22698322406146064,
+    1205099108012032,
+    9228087301064687616,
+    73187894424010752,
+    1130444285345906,
+    4612275373907992576,
+    2305988214307962881,
+    2306019103008638978,
+    288866237490987264,
+    72216138562421252,
+    1162214595146940544,
+    37163512463630369,
+    2315977277682221568,
+    9368050759537001484,
+    4611691533434038336,
+    38484651935748,
+    594475288664083602,
+    9052289030553760,
+    327074215130433544,
+    7298083213874892800,
+    147492889954385920,
+    72093336789393409,
+    10376383993509711872,
+    2341908098781939841,
+    9239486531352396033,
+    2312604190083450881,
+    1130332548499472,
+    4612816316921872896,
+    18159534086299648,
+    148636654801256960,
+    1162211278356744200,
+    70922811770880,
+    1157434484545553041,
+    290539367752177667,
+    17334400050057448448,
+    9259403035103723648,
+    4515153089667584,
+    186354585114313280,
+    581395369348858368,
+    720934383325946884,
+    1585550262873362440,
+    330174554376773637,
+    1171780878892830720,
+    2378079007612618752,
+    211141968036416,
+    299273329573952,
+    577025935659768325,
+    5910134490650908032,
+    564067182052352,
+    4857645661978624,
+    86695402290546696,
+    4828157972997996608,
+    144124122148962304,
+    4508857473761281,
+    2310771089116012544,
+    6918656061436134410,
+    288250176238258186,
+    5774531719424258058,
+    1152921783790252048,
+    2325469252946049,
+    432381023788073472,
+    3476780081401086209,
+    28237116734505473,
+    9223961384147108352,
+];
+
+const ROOK_MAGIC_NUMBERS: [u64; 64] = [
+    36029347315843096,
+    2395915482942144836,
+    4683761243343822848,
+    5800645116214378624,
+    144117387167277064,
+    72061992218788096,
+    4935947390663263488,
+    144120840269693010,
+    586734589561537152,
+    310889386656923784,
+    144678277649272896,
+    13835339598980451584,
+    141287378387968,
+    216876478145757312,
+    39406501303190056,
+    9386908999430996224,
+    2323866753710456865,
+    4508272553886784,
+    1442564753737138193,
+    4611829504963250176,
+    9223672203663441924,
+    2309361996245500416,
+    9238030728695972368,
+    9277804459638423812,
+    36029077265653760,
+    1152956698642894848,
+    1198476265293856,
+    2612378338414690576,
+    1227232002265580944,
+    4612249870324477956,
+    7116056435917058,
+    2305861159746216004,
+    450430333637099553,
+    1342107942052167744,
+    81099979820634120,
+    281509890101248,
+    9232519990786131968,
+    577024595912038404,
+    4909064335625552384,
+    12686640717271924801,
+    11529250781270147073,
+    4503875042164736,
+    864972740875059216,
+    2251868541583369,
+    4647719213627113600,
+    9251519543116071040,
+    11402004316553224,
+    6918093079257940004,
+    282171843543808,
+    11558204743909632,
+    589976018488426624,
+    153162004377436416,
+    11533727443936608384,
+    18295890666586880,
+    144258130091484160,
+    594485269764262400,
+    9223392120675533314,
+    1729418542945669638,
+    635517997811746,
+    4902449807076901963,
+    4756364173907068930,
+    302304468669302826,
+    565153280561156,
+    277027554306,
+];
 
 fn mask_pawn_attacks(square: i32, side: Side) -> u64 {
     let mut attacks = 0u64;
@@ -460,7 +594,6 @@ pub struct Attacks {
     pub rook: [[u64; 4096]; 64],
     pub bishop: [[u64; 512]; 64],
 
-    magic_numbers: MagicNumbers,
     sliding_masks: SlidingMasks,
     occupancies: Occupancies,
 }
@@ -470,6 +603,14 @@ fn time_as_ms(d: Duration) -> f64 {
 }
 
 impl Attacks {
+    pub fn print_magic_numbers() {
+        let occupancies = Occupancies::new();
+        let magic_numbers = MagicNumbers::new(&occupancies);
+
+        println!("Bishop magics: {:?}", magic_numbers.bishop);
+        println!("Rook magics: {:?}", magic_numbers.rook);
+    }
+
     pub fn new() -> Self {
         println!("Start generation... ");
         let timer = Instant::now();
@@ -478,18 +619,11 @@ impl Attacks {
         let occupancies_time = timer.elapsed();
         println!("  Occupancies ok ({}ms)... ", time_as_ms(occupancies_time));
 
-        let magic_numbers = MagicNumbers::new(&occupancies);
-        let magic_numbers_time = timer.elapsed();
-        println!(
-            "  Magic numbers ok ({}ms)... ",
-            time_as_ms(magic_numbers_time - occupancies_time)
-        );
-
         let sliding_masks = SlidingMasks::new();
         let sliding_masks_time = timer.elapsed();
         println!(
             "  Sliding masks ok ({}ms)... ",
-            time_as_ms(sliding_masks_time - magic_numbers_time)
+            time_as_ms(sliding_masks_time - occupancies_time)
         );
 
         let pawn = generate_pawn_attacks();
@@ -521,7 +655,7 @@ impl Attacks {
 
             for index in 0..bishop_occupancy_indices {
                 let occupancy = set_occupancy(index, bishop_relevant_bit_count, bishop_attack_mask);
-                let magic_index = occupancy.wrapping_mul(magic_numbers.bishop[square])
+                let magic_index = occupancy.wrapping_mul(BISHOP_MAGIC_NUMBERS[square])
                     >> (64 - occupancies.bishop[square]);
 
                 bishop[square][magic_index as usize] =
@@ -542,7 +676,7 @@ impl Attacks {
 
             for index in 0..rook_occupancy_indices {
                 let occupancy = set_occupancy(index, rook_relevant_bit_count, rook_attack_mask);
-                let magic_index = occupancy.wrapping_mul(magic_numbers.rook[square])
+                let magic_index = occupancy.wrapping_mul(ROOK_MAGIC_NUMBERS[square])
                     >> (64 - occupancies.rook[square]);
 
                 rook[square][magic_index as usize] =
@@ -561,7 +695,6 @@ impl Attacks {
             king,
             bishop,
             rook,
-            magic_numbers,
             sliding_masks,
             occupancies,
         }
@@ -573,7 +706,7 @@ impl Attacks {
         let index = square as usize;
 
         occupancy_idx &= self.sliding_masks.bishop[index];
-        occupancy_idx = occupancy_idx.wrapping_mul(self.magic_numbers.bishop[index]);
+        occupancy_idx = occupancy_idx.wrapping_mul(BISHOP_MAGIC_NUMBERS[index]);
         occupancy_idx >>= 64 - self.occupancies.bishop[index];
 
         self.bishop[index][occupancy_idx as usize]
@@ -585,7 +718,7 @@ impl Attacks {
         let index = square as usize;
 
         occupancy_idx &= self.sliding_masks.rook[index];
-        occupancy_idx = occupancy_idx.wrapping_mul(self.magic_numbers.rook[index]);
+        occupancy_idx = occupancy_idx.wrapping_mul(ROOK_MAGIC_NUMBERS[index]);
         occupancy_idx >>= 64 - self.occupancies.rook[index];
 
         self.rook[index][occupancy_idx as usize]
