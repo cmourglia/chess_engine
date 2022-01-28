@@ -81,55 +81,29 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn new() -> Self {
-        // TODO:
-        // Self::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-        let white_pawns = 0u64
-            | as_bitboard(A2)
-            | as_bitboard(B2)
-            | as_bitboard(C2)
-            | as_bitboard(D2)
-            | as_bitboard(E2)
-            | as_bitboard(F2)
-            | as_bitboard(G2)
-            | as_bitboard(H2);
+    pub fn from_fen(fen: &str) -> Self {
+        let mut pieces = [0u64; 12];
 
-        let white_knights = 0u64 | as_bitboard(B1) | as_bitboard(G1);
-        let white_bishops = 0u64 | as_bitboard(C1) | as_bitboard(F1);
-        let white_rooks = 0u64 | as_bitboard(A1) | as_bitboard(H1);
-        let white_queens = 0u64 | as_bitboard(D1);
-        let white_king = 0u64 | as_bitboard(E1);
+        let mut fen_iter = fen.split(' ');
+        let position = fen_iter.next().unwrap_or("");
 
-        let black_pawns = 0u64
-            | as_bitboard(A7)
-            | as_bitboard(B7)
-            | as_bitboard(C7)
-            | as_bitboard(D7)
-            | as_bitboard(E7)
-            | as_bitboard(F7)
-            | as_bitboard(G7)
-            | as_bitboard(H7);
-
-        let black_knights = 0u64 | as_bitboard(B8) | as_bitboard(G8);
-        let black_bishops = 0u64 | as_bitboard(C8) | as_bitboard(F8);
-        let black_rooks = 0u64 | as_bitboard(A8) | as_bitboard(H8);
-        let black_queens = 0u64 | as_bitboard(D8);
-        let black_king = 0u64 | as_bitboard(E8);
-
-        let pieces = [
-            white_pawns,
-            white_knights,
-            white_bishops,
-            white_rooks,
-            white_queens,
-            white_king,
-            black_pawns,
-            black_knights,
-            black_bishops,
-            black_rooks,
-            black_queens,
-            black_king,
-        ];
+        let position_iter = position.split('/');
+        for (rank, line) in position_iter.enumerate() {
+            let mut file = 0;
+            for c in line.chars() {
+                if let Some(piece) = ASCII_TO_PIECE.get(&c) {
+                    let piece_idx = *piece as usize;
+                    pieces[piece_idx] = set_bit(pieces[piece_idx], get_square(rank as i32, file));
+                    file += 1;
+                } else {
+                    if c.is_numeric() {
+                        file += (c as u8 - '0' as u8) as i32;
+                    } else {
+                        unreachable!();
+                    }
+                }
+            }
+        }
 
         let occupancies = [
             Self::get_occupancy(&pieces, Side::White),
@@ -137,13 +111,43 @@ impl Board {
             Self::get_occupancy(&pieces, Side::Both),
         ];
 
+        let side_to_move = match fen_iter.next().unwrap() {
+            "w" => Side::White,
+            "b" => Side::Black,
+            _ => unreachable!(),
+        };
+
+        let castling_str = fen_iter.next().unwrap();
+        let mut castling_rights = 0u8;
+        for c in castling_str.chars() {
+            match c {
+                'K' => castling_rights |= Castling::WhiteKing as u8,
+                'Q' => castling_rights |= Castling::WhiteQueen as u8,
+                'k' => castling_rights |= Castling::BlackKing as u8,
+                'q' => castling_rights |= Castling::BlackQueen as u8,
+                _ => unreachable!(),
+            }
+        }
+
+        let mut en_passant_square = NO_SQUARE;
+        let en_passant_str = fen_iter.next().unwrap();
+        if let Some(en_passant) = CELL_TO_SQUARE.get(en_passant_str) {
+            en_passant_square = *en_passant;
+        }
+
+        // TODO: Handle 50 moves rule parsing
+
         Self {
             pieces,
             occupancies,
-            side_to_move: Side::White,
-            en_passant_square: NO_SQUARE,
-            castling_rights: 15u8,
+            side_to_move,
+            en_passant_square,
+            castling_rights,
         }
+    }
+
+    pub fn new() -> Self {
+        Self::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
     }
 
     pub fn print(&self) {
