@@ -164,61 +164,12 @@ impl Board {
         Self::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
     }
 
-    /// Check whether the given square is under attack.
-    /// In order to do this,instead of checking if any of the pieces is attacking the square,
-    /// we check if the square attacks any of the pieces as this piece.
-    /// e.g., if the e5 square is attacked by a black pawn on d6, it also means that,
-    /// as a white pawn, the square attacks d6, which is easier to check.
-    /// This also means we only do 6 attack lookups and 6 bitwise & instead of 16
-    /// (plus the need to find the pieces inside the pieces bitboards)
-    pub fn is_square_attacked(&self, square: i32, attacking_side: Side) -> bool {
-        let occupancy = self.occupancies[Side::Both as usize];
-
-        let this_side = match attacking_side {
-            Side::Black => Side::White,
-            Side::White => Side::Black,
-            Side::Both => unreachable!(),
-        };
-
-        let as_pawn = self.attacks.get_pawn_attacks(square, this_side);
-        if bits_collide(as_pawn, self.bitboard(Piece::Pawn, attacking_side)) {
-            return true;
-        }
-
-        let as_knight = self.attacks.get_knight_attacks(square);
-        if bits_collide(as_knight, self.bitboard(Piece::Knight, attacking_side)) {
-            return true;
-        }
-
-        let as_king = self.attacks.get_king_attacks(square);
-        if bits_collide(as_king, self.bitboard(Piece::King, attacking_side)) {
-            return true;
-        }
-
-        let as_bishop = self.attacks.get_bishop_attacks(square, occupancy);
-        if bits_collide(as_bishop, self.bitboard(Piece::Bishop, attacking_side)) {
-            return true;
-        }
-
-        let as_rook = self.attacks.get_rook_attacks(square, occupancy);
-        if bits_collide(as_rook, self.bitboard(Piece::Rook, attacking_side)) {
-            return true;
-        }
-
-        let as_queen = self.attacks.get_queen_attacks(square, occupancy);
-        if bits_collide(as_queen, self.bitboard(Piece::Queen, attacking_side)) {
-            return true;
-        }
-
-        false
-    }
-
-    fn bitboard(&self, piece: Piece, side: Side) -> u64 {
+    pub fn bitboard(&self, piece: Piece, side: Side) -> u64 {
         let index = piece as usize + side as usize * std::mem::variant_count::<Piece>();
         self.pieces[index]
     }
 
-    fn get_occupancy(pieces: &[u64; 12], side: Side) -> u64 {
+    pub fn get_occupancy(pieces: &[u64; 12], side: Side) -> u64 {
         let mut result = 0u64;
 
         let indices = match side {
