@@ -589,11 +589,11 @@ impl Occupancies {
 }
 
 pub struct Attacks {
-    pub pawn: [[u64; 64]; 2],
-    pub knight: [u64; 64],
-    pub king: [u64; 64],
-    pub rook: Vec<u64>,
-    pub bishop: Vec<u64>,
+    pawn: [[u64; 64]; 2],
+    knight: [u64; 64],
+    king: [u64; 64],
+    rook: Vec<u64>,
+    bishop: Vec<u64>,
 
     sliding_masks: SlidingMasks,
     occupancies: Occupancies,
@@ -703,6 +703,18 @@ impl Attacks {
             sliding_masks,
             occupancies,
         }
+    }
+
+    pub fn get_pawn_attacks(&self, square: i32, side: Side) -> u64 {
+        self.pawn[side as usize][square as usize]
+    }
+
+    pub fn get_knight_attacks(&self, square: i32) -> u64 {
+        self.knight[square as usize]
+    }
+
+    pub fn get_king_attacks(&self, square: i32) -> u64 {
+        self.king[square as usize]
     }
 
     pub fn get_bishop_attacks(&self, square: i32, occupancy: u64) -> u64 {
