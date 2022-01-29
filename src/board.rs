@@ -129,7 +129,7 @@ impl Board {
                 'Q' => castling_rights |= Castling::WhiteQueen as u8,
                 'k' => castling_rights |= Castling::BlackKing as u8,
                 'q' => castling_rights |= Castling::BlackQueen as u8,
-                _ => unreachable!(),
+                _ => {}
             }
         }
 
