@@ -60,28 +60,3 @@ pub const fn least_significant_bit_index(bitboard: u64) -> usize {
         bit_count(bits as u64 - 1)
     }
 }
-
-pub fn print_bitboard(bitboard: u64) {
-    println!("\n-*- {:.>20} ({:#016X}) -*-", bitboard, bitboard);
-
-    println!("                ---------------");
-    for rank in 0..8 {
-        print!("           {}  |", 8 - rank);
-        for file in 0..8 {
-            let square = rank * 8 + file;
-
-            print!(
-                " {}",
-                if get_bit(bitboard, square) {
-                    '×'
-                } else {
-                    '·'
-                }
-            );
-        }
-        println!(" |");
-    }
-
-    println!("                ---------------");
-    println!("                a b c d e f g h\n");
-}

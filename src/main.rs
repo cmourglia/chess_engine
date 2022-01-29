@@ -1,3 +1,4 @@
+mod ascii_view;
 mod attacks;
 mod bitboard;
 mod board;
