@@ -15,7 +15,7 @@ pub const fn as_bitboard(square: i32) -> u64 {
     }
 }
 
-pub fn bitboard_from_squares(squares: Vec<i32>) -> u64 {
+pub fn make_blocker(squares: Vec<i32>) -> u64 {
     let mut result = 0u64;
 
     for square in squares {
@@ -49,6 +49,10 @@ pub const fn bit_count(bitboard: u64) -> usize {
         bit_counter += 1;
     }
     bit_counter
+}
+
+pub const fn bits_collide(bitboard_a: u64, bitboard_b: u64) -> bool {
+    bitboard_a & bitboard_b != 0
 }
 
 pub const fn least_significant_bit_index(bitboard: u64) -> usize {

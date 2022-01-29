@@ -5,8 +5,17 @@ use crate::bitboard::*;
 use crate::codegen::get_square;
 use crate::squares::*;
 
+pub enum Piece {
+    Pawn,
+    Knight,
+    Bishop,
+    Rook,
+    Queen,
+    King,
+}
+
 #[derive(Clone, Copy)]
-enum Piece {
+pub enum SidedPiece {
     WhitePawn,
     WhiteKnight,
     WhiteBishop,
@@ -21,7 +30,7 @@ enum Piece {
     BlackKing,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Side {
     White,
     Black,
@@ -35,23 +44,21 @@ enum Castling {
     BlackQueen = 1 << 3,
 }
 
-const PIECE_TABLE: [char; 12] = ['♙', '♘', '♗', '♖', '♕', '♔', '♟', '♞', '♝', '♜', '♛', '♚'];
-
 /// Map each ASCII character with a piece type
 /// This is especially useful for FEN parsing
-const ASCII_TO_PIECE: phf::Map<char, Piece> = phf_map! {
-    'P' => Piece::WhitePawn,
-    'N' => Piece::WhiteKnight,
-    'B' => Piece::WhiteBishop,
-    'R' => Piece::WhiteRook,
-    'Q' => Piece::WhiteQueen,
-    'K' => Piece::WhiteKing,
-    'p' => Piece::BlackPawn,
-    'n' => Piece::BlackKnight,
-    'b' => Piece::BlackBishop,
-    'r' => Piece::BlackRook,
-    'q' => Piece::BlackQueen,
-    'k' => Piece::BlackKing,
+const ASCII_TO_PIECE: phf::Map<char, SidedPiece> = phf_map! {
+    'P' => SidedPiece::WhitePawn,
+    'N' => SidedPiece::WhiteKnight,
+    'B' => SidedPiece::WhiteBishop,
+    'R' => SidedPiece::WhiteRook,
+    'Q' => SidedPiece::WhiteQueen,
+    'K' => SidedPiece::WhiteKing,
+    'p' => SidedPiece::BlackPawn,
+    'n' => SidedPiece::BlackKnight,
+    'b' => SidedPiece::BlackBishop,
+    'r' => SidedPiece::BlackRook,
+    'q' => SidedPiece::BlackQueen,
+    'k' => SidedPiece::BlackKing,
 };
 
 pub struct Board {
@@ -59,29 +66,29 @@ pub struct Board {
     /// of this given type.
     /// e.g. white knights starting bitboard is given by B1 | G1.
     /// black rooks starting bitboard is A8 | H8, and so on.
-    pieces: [u64; 12],
+    pub pieces: [u64; 12],
 
     /// Occupancies, index by Side enum
     /// 0: White pieces occupancy table
     /// 1: Black pieces occupancy table
     /// 2: All pieces occupancy table
-    occupancies: [u64; 3],
+    pub occupancies: [u64; 3],
 
-    side_to_move: Side,
+    pub side_to_move: Side,
 
     /// A pawn has just made a two-square move, an en-passant square is then made available.
     /// Otherwise, this is set to NO_SQUARE(-1)
-    en_passant_square: i32,
+    pub en_passant_square: i32,
 
     /// Bitmask of available castlings (@Castling)
     /// 0001 -> White king-side castling
     /// 0010 -> White queen-side castling
     /// 0100 -> Black king-side castling
     /// 1000 -> Black queen-side castling.
-    castling_rights: u8,
+    pub castling_rights: u8,
 
     /// Attack maps
-    attacks: Attacks,
+    pub attacks: Attacks,
 }
 
 impl Board {
@@ -157,58 +164,68 @@ impl Board {
         Self::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
     }
 
-    pub fn print(&self) {
-        println!("      ---------------");
-        for rank in 0..8 {
-            print!(" {}  |", 8 - rank);
-            for file in 0..8 {
-                let square = rank * 8 + file;
+    /// Check whether the given square is under attack.
+    /// In order to do this,instead of checking if any of the pieces is attacking the square,
+    /// we check if the square attacks any of the pieces as this piece.
+    /// e.g., if the e5 square is attacked by a black pawn on d6, it also means that,
+    /// as a white pawn, the square attacks d6, which is easier to check.
+    /// This also means we only do 6 attack lookups and 6 bitwise & instead of 16
+    /// (plus the need to find the pieces inside the pieces bitboards)
+    pub fn is_square_attacked(&self, square: i32, attacking_side: Side) -> bool {
+        let occupancy = self.occupancies[Side::Both as usize];
 
-                let mut piece = -1i32;
-                for (i, p) in self.pieces.iter().enumerate() {
-                    if get_bit(*p, square) {
-                        piece = i as i32;
-                        break;
-                    }
-                }
+        let this_side = match attacking_side {
+            Side::Black => Side::White,
+            Side::White => Side::Black,
+            Side::Both => unreachable!(),
+        };
 
-                print!(
-                    " {}",
-                    if piece == -1 {
-                        '·'
-                    } else {
-                        PIECE_TABLE[piece as usize]
-                    }
-                );
-            }
-            println!(" |");
+        let as_pawn = self.attacks.get_pawn_attacks(square, this_side);
+        if bits_collide(as_pawn, self.bitboard(Piece::Pawn, attacking_side)) {
+            return true;
         }
 
-        println!("      ---------------");
-        println!("      a b c d e f g h\n");
+        let as_knight = self.attacks.get_knight_attacks(square);
+        if bits_collide(as_knight, self.bitboard(Piece::Knight, attacking_side)) {
+            return true;
+        }
 
-        println!(
-            "Side to move: {:?} \nCastling: {:04b}\nEn-passant: {}\n",
-            self.side_to_move,
-            self.castling_rights,
-            if self.en_passant_square == NO_SQUARE {
-                "ø"
-            } else {
-                CELL_NAMES[self.en_passant_square as usize]
-            }
-        );
+        let as_king = self.attacks.get_king_attacks(square);
+        if bits_collide(as_king, self.bitboard(Piece::King, attacking_side)) {
+            return true;
+        }
+
+        let as_bishop = self.attacks.get_bishop_attacks(square, occupancy);
+        if bits_collide(as_bishop, self.bitboard(Piece::Bishop, attacking_side)) {
+            return true;
+        }
+
+        let as_rook = self.attacks.get_rook_attacks(square, occupancy);
+        if bits_collide(as_rook, self.bitboard(Piece::Rook, attacking_side)) {
+            return true;
+        }
+
+        let as_queen = self.attacks.get_queen_attacks(square, occupancy);
+        if bits_collide(as_queen, self.bitboard(Piece::Queen, attacking_side)) {
+            return true;
+        }
+
+        false
+    }
+
+    fn bitboard(&self, piece: Piece, side: Side) -> u64 {
+        let index = piece as usize + side as usize * std::mem::variant_count::<Piece>();
+        self.pieces[index]
     }
 
     fn get_occupancy(pieces: &[u64; 12], side: Side) -> u64 {
-        let indices = {
-            match side {
-                Side::White => 0..6,
-                Side::Black => 6..12,
-                Side::Both => 0..12,
-            }
-        };
-
         let mut result = 0u64;
+
+        let indices = match side {
+            Side::White => 0..6,
+            Side::Black => 6..12,
+            Side::Both => 0..12,
+        };
 
         for i in indices {
             result |= pieces[i]

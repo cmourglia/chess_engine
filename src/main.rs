@@ -1,3 +1,4 @@
+#![feature(variant_count)]
 mod ascii_view;
 mod attacks;
 mod bitboard;
