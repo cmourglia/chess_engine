@@ -61,6 +61,14 @@ const ASCII_TO_PIECE: phf::Map<char, SidedPiece> = phf_map! {
     'k' => SidedPiece::BlackKing,
 };
 
+pub fn opponent_side(side: Side) -> Side {
+    match side {
+        Side::White => Side::Black,
+        Side::Black => Side::White,
+        Side::Both => unreachable!(),
+    }
+}
+
 pub struct Board {
     /// One bitboard per piece type, which keeps track of every piece
     /// of this given type.
