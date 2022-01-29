@@ -1,5 +1,6 @@
 use crate::bitboard::*;
 use crate::board::*;
+use crate::move_generator::*;
 use crate::squares::*;
 
 const PIECE_TABLE: [char; 12] = ['♙', '♘', '♗', '♖', '♕', '♔', '♟', '♞', '♝', '♜', '♛', '♚'];
@@ -80,7 +81,7 @@ pub fn print_attacked_squares(board: &Board, side: Side) {
 
             print!(
                 " {}",
-                if board.is_square_attacked(square, side) {
+                if is_square_attacked(board, square, side) {
                     '×'
                 } else {
                     '·'
