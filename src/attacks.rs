@@ -592,8 +592,8 @@ pub struct Attacks {
     pub pawn: [[u64; 64]; 2],
     pub knight: [u64; 64],
     pub king: [u64; 64],
-    pub rook: [[u64; 4096]; 64],
-    pub bishop: [[u64; 512]; 64],
+    pub rook: Vec<u64>,
+    pub bishop: Vec<u64>,
 
     sliding_masks: SlidingMasks,
     occupancies: Occupancies,
@@ -648,7 +648,9 @@ impl Attacks {
             time_as_ms(king_time - knight_time)
         );
 
-        let mut bishop = [[0u64; 512]; 64];
+        let mut bishop = Vec::new();
+        bishop.resize(512 * 64, 0u64);
+
         for square in 0..64 {
             let bishop_attack_mask = sliding_masks.bishop[square];
             let bishop_relevant_bit_count = bit_count(bishop_attack_mask);
@@ -659,7 +661,7 @@ impl Attacks {
                 let magic_index = occupancy.wrapping_mul(BISHOP_MAGIC_NUMBERS[square])
                     >> (64 - occupancies.bishop[square]);
 
-                bishop[square][magic_index as usize] =
+                bishop[square * 512 + magic_index as usize] =
                     bishop_attacks_on_the_fly(square as i32, occupancy);
             }
         }
@@ -669,7 +671,9 @@ impl Attacks {
             time_as_ms(bishop_time - king_time)
         );
 
-        let mut rook = [[0u64; 4096]; 64];
+        let mut rook = Vec::new();
+        rook.resize(4096 * 64, 0u64);
+
         for square in 0..64 {
             let rook_attack_mask = sliding_masks.rook[square];
             let rook_relevant_bit_count = bit_count(rook_attack_mask);
@@ -680,7 +684,7 @@ impl Attacks {
                 let magic_index = occupancy.wrapping_mul(ROOK_MAGIC_NUMBERS[square])
                     >> (64 - occupancies.rook[square]);
 
-                rook[square][magic_index as usize] =
+                rook[square * 4096 + magic_index as usize] =
                     rook_attacks_on_the_fly(square as i32, occupancy);
             }
         }
@@ -710,7 +714,7 @@ impl Attacks {
         occupancy_idx = occupancy_idx.wrapping_mul(BISHOP_MAGIC_NUMBERS[index]);
         occupancy_idx >>= 64 - self.occupancies.bishop[index];
 
-        self.bishop[index][occupancy_idx as usize]
+        self.bishop[index * 512 + occupancy_idx as usize]
     }
 
     pub fn get_rook_attacks(&self, square: i32, occupancy: u64) -> u64 {
@@ -722,7 +726,7 @@ impl Attacks {
         occupancy_idx = occupancy_idx.wrapping_mul(ROOK_MAGIC_NUMBERS[index]);
         occupancy_idx >>= 64 - self.occupancies.rook[index];
 
-        self.rook[index][occupancy_idx as usize]
+        self.rook[index * 4096 + occupancy_idx as usize]
     }
 
     pub fn get_queen_attacks(&self, square: i32, occupancy: u64) -> u64 {
