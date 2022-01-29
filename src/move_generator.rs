@@ -1,6 +1,86 @@
+use std::fmt::Display;
+
 use crate::bitboard::*;
 use crate::board::*;
+use crate::squares;
 
+#[derive(Clone, Copy, Debug)]
+pub struct Move {
+    source_square: i32,
+    target_square: i32,
+    is_capture: bool,
+    is_castle: bool,
+    is_en_passant: bool,
+    is_promotion: bool,
+}
+
+impl Move {
+    fn simple(source_square: i32, target_square: i32) -> Self {
+        Self {
+            source_square,
+            target_square,
+            is_capture: false,
+            is_castle: false,
+            is_en_passant: false,
+            is_promotion: false,
+        }
+    }
+
+    fn capture(source_square: i32, target_square: i32) -> Self {
+        Self {
+            source_square,
+            target_square,
+            is_capture: true,
+            is_castle: false,
+            is_en_passant: false,
+            is_promotion: false,
+        }
+    }
+
+    fn castle(source_square: i32, target_square: i32) -> Self {
+        Self {
+            source_square,
+            target_square,
+            is_capture: false,
+            is_castle: true,
+            is_en_passant: false,
+            is_promotion: false,
+        }
+    }
+
+    fn en_passant(source_square: i32, target_square: i32) -> Self {
+        Self {
+            source_square,
+            target_square,
+            is_capture: true,
+            is_castle: false,
+            is_en_passant: true,
+            is_promotion: false,
+        }
+    }
+
+    fn promotion(source_square: i32, target_square: i32, is_capture: bool) -> Self {
+        Self {
+            source_square,
+            target_square,
+            is_capture,
+            is_castle: false,
+            is_en_passant: false,
+            is_promotion: true,
+        }
+    }
+}
+
+impl Display for Move {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}{}",
+            squares::CELL_NAMES[self.source_square as usize],
+            squares::CELL_NAMES[self.target_square as usize],
+        )
+    }
+}
 
 /// Check whether the given square is under attack.
 /// In order to do this,instead of checking if any of the pieces is attacking the square,
