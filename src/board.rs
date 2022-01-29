@@ -1,6 +1,7 @@
 use phf::phf_map;
 
-use crate::bitboard::{as_bitboard, get_bit, set_bit};
+use crate::attacks::Attacks;
+use crate::bitboard::*;
 use crate::codegen::get_square;
 use crate::squares::*;
 
@@ -78,6 +79,9 @@ pub struct Board {
     /// 0100 -> Black king-side castling
     /// 1000 -> Black queen-side castling.
     castling_rights: u8,
+
+    /// Attack maps
+    attacks: Attacks,
 }
 
 impl Board {
@@ -137,12 +141,15 @@ impl Board {
 
         // TODO: Handle 50 moves rule parsing
 
+        let attacks = Attacks::new();
+
         Self {
             pieces,
             occupancies,
             side_to_move,
             en_passant_square,
             castling_rights,
+            attacks,
         }
     }
 
