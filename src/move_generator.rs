@@ -131,3 +131,14 @@ pub fn is_square_attacked(board: &Board, square: i32, attacking_side: Side) -> b
     false
 }
 
+pub fn generate_moves(board: &Board) -> Vec<Move> {
+    let mut moves = vec![];
+
+    match board.side_to_move {
+        Side::White => {}
+        Side::Black => {}
+        Side::Both => unreachable!(),
+    }
+
+    moves
+}
