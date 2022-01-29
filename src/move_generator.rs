@@ -135,9 +135,89 @@ pub fn generate_moves(board: &Board) -> Vec<Move> {
     let mut moves = vec![];
 
     match board.side_to_move {
-        Side::White => {}
-        Side::Black => {}
+        Side::White => {
+            moves.append(&mut generate_pawn_moves(board, Side::White));
+        }
+        Side::Black => {
+            moves.append(&mut generate_pawn_moves(board, Side::Black));
+        }
         Side::Both => unreachable!(),
+    }
+}
+
+fn generate_pawn_moves(board: &Board, side: Side) -> Vec<Move> {
+    // Cache relevant data
+    let all_occupancies = board.occupancies[Side::Both as usize];
+    let my_occupancies = board.occupancies[side as usize];
+    let opp_occupancies = board.occupancies[opponent_side(side) as usize];
+    let en_passant_square = board.en_passant_square;
+
+    // start_rank: This side's pawns start rank.
+    //   This is given by the result of the integer division of the
+    //   square index by 8.
+    //   0 corresponds to rank 8,
+    //   1 corresponds to rank 7 (black's start rank)
+    //   ...
+    //   6 corresponds to rank 2 (white's start rank)
+    // back_rank: The opponents "back rank". This is used to detect promotion
+    let (start_rank, back_rank) = match side {
+        Side::White => (6, 0),
+        Side::Black => (1, 7),
+        Side::Both => unreachable!(),
+    };
+
+    let (one_square, two_squares) = match side {
+        Side::White => (-8, -16),
+        Side::Black => (8, 16),
+        Side::Both => unreachable!(),
+    };
+
+    let mut bitboard = board.bitboard(Piece::Pawn, side);
+    let mut moves = vec![];
+
+    while bitboard != 0 {
+        let source_square = least_significant_bit_index(bitboard) as i32;
+        bitboard = pop_bit(bitboard, source_square);
+
+        let target_square = source_square + one_square;
+        if as_bitboard(target_square) & all_occupancies == 0 {
+            let rank = source_square / 8;
+
+            if rank == back_rank {
+                moves.push(Move::promotion(source_square, target_square, false));
+            } else {
+                moves.push(Move::simple(source_square, target_square));
+            }
+
+            // The two squares move is only relevant if there is already no
+            // blocker for the one square move.
+            // We also need to make sure we are on the start rank.
+            if rank == start_rank {
+                let target_square = source_square + two_squares;
+                if as_bitboard(target_square) & all_occupancies == 0 {
+                    moves.push(Move::simple(source_square, target_square));
+                }
+            }
+        }
+
+        let mut attacks = board.attacks.get_pawn_attacks(source_square, side);
+        while attacks != 0 {
+            let target_square = least_significant_bit_index(attacks) as i32;
+            attacks = pop_bit(attacks, target_square);
+
+            if as_bitboard(target_square) & opp_occupancies == 1 {
+                if source_square / 8 == back_rank {
+                    moves.push(Move::promotion(source_square, target_square, true));
+                } else {
+                    moves.push(Move::capture(source_square, target_square));
+                }
+            } else if en_passant_square == target_square {
+                // This test would be relevant only on 4th and 5th ranks, but it might
+                // be more costly to perform a division than just test directly
+                // with data already loaded...
+                moves.push(Move::en_passant(source_square, target_square));
+            }
+        }
     }
 
     moves
