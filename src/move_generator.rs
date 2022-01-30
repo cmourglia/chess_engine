@@ -137,9 +137,11 @@ pub fn generate_moves(board: &Board) -> Vec<Move> {
     match board.side_to_move {
         Side::White => {
             moves.append(&mut generate_pawn_moves(board, Side::White));
+            moves.append(&mut generate_king_castles(board, Side::White));
         }
         Side::Black => {
             moves.append(&mut generate_pawn_moves(board, Side::Black));
+            moves.append(&mut generate_king_castles(board, Side::Black));
         }
         Side::Both => unreachable!(),
     }
@@ -223,4 +225,73 @@ fn generate_pawn_moves(board: &Board, side: Side) -> Vec<Move> {
     }
 
     moves
+}
+
+fn generate_king_castles(board: &Board, side: Side) -> Vec<Move> {
+    let king_bitboard = board.bitboard(Piece::King, side);
+    let king_square = least_significant_bit_index(king_bitboard) as i32;
+    let opponent_side = opponent_side(side);
+
+    // For some reason, we have no king...
+    if king_bitboard == 0 {
+        return vec![];
+    }
+
+    // The king is under attack (checked), we cannot castle.
+    if is_square_attacked(board, king_square, opponent_side) {
+        return vec![];
+    }
+
+    // Extract board info. Can we still castle king or queen side ?
+    let (can_castle_king_side, can_castle_queen_side) = match side {
+        Side::White => (
+            board.castling_rights & Castling::WhiteKing as u8 != 0,
+            board.castling_rights & Castling::WhiteQueen as u8 != 0,
+        ),
+        Side::Black => (
+            board.castling_rights & Castling::BlackKing as u8 != 0,
+            board.castling_rights & Castling::BlackQueen as u8 != 0,
+        ),
+        Side::Both => unreachable!(),
+    };
+
+    let mut moves = vec![];
+
+    let all_occupancies = board.occupancies[Side::Both as usize];
+
+    if can_castle_king_side {
+        let squares = [king_square + 1, king_square + 2];
+
+        if can_castle(board, &squares, all_occupancies, opponent_side) {
+            moves.push(Move::castle(king_square, king_square + 2));
+        }
+    }
+
+    if can_castle_queen_side {
+        let squares = [king_square - 1, king_square - 2, king_square - 3];
+
+        if can_castle(board, &squares, all_occupancies, opponent_side) {
+            moves.push(Move::castle(king_square, king_square - 2));
+        }
+    }
+
+    moves
+}
+
+fn can_castle(board: &Board, squares: &[i32], occupancy: u64, opponent_side: Side) -> bool {
+    let mut ok = true;
+    for square in squares {
+        let bitboard = bitboard_from_square(*square);
+        if bitboard & occupancy != 0 {
+            ok = false;
+            break;
+        }
+
+        if is_square_attacked(board, *square, opponent_side) {
+            ok = false;
+            break;
+        }
+    }
+
+    ok
 }

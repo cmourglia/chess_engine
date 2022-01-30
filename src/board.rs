@@ -37,7 +37,7 @@ pub enum Side {
     Both,
 }
 
-enum Castling {
+pub enum Castling {
     WhiteKing = 1 << 0,
     WhiteQueen = 1 << 1,
     BlackKing = 1 << 2,
