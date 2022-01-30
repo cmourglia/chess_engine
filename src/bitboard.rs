@@ -7,7 +7,7 @@ pub const NOT_H_FILE: u64 = codegen::not_h_file();
 pub const NOT_AB_FILE: u64 = codegen::not_ab_file();
 pub const NOT_GH_FILE: u64 = codegen::not_gh_file();
 
-pub const fn as_bitboard(square: i32) -> u64 {
+pub const fn bitboard_from_square(square: i32) -> u64 {
     if let Some(v) = (1 as u64).checked_shl(square as u32) {
         v
     } else {
@@ -19,26 +19,26 @@ pub fn make_blocker(squares: Vec<i32>) -> u64 {
     let mut result = 0u64;
 
     for square in squares {
-        result |= as_bitboard(square)
+        result |= bitboard_from_square(square)
     }
 
     result
 }
 
 pub const fn get_bit(bitboard: u64, square: i32) -> bool {
-    bitboard & as_bitboard(square) != 0
+    bitboard & bitboard_from_square(square) != 0
 }
 
 pub const fn set_bit(bitboard: u64, square: i32) -> u64 {
-    bitboard | as_bitboard(square)
+    bitboard | bitboard_from_square(square)
 }
 
 pub const fn toggle_bit(bitboard: u64, square: i32) -> u64 {
-    bitboard ^ as_bitboard(square)
+    bitboard ^ bitboard_from_square(square)
 }
 
 pub const fn pop_bit(bitboard: u64, square: i32) -> u64 {
-    bitboard & !as_bitboard(square)
+    bitboard & !bitboard_from_square(square)
 }
 
 pub const fn bit_count(bitboard: u64) -> usize {

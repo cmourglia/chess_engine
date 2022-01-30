@@ -142,7 +142,7 @@ const ROOK_MAGIC_NUMBERS: [u64; 64] = [
 
 fn mask_pawn_attacks(square: i32, side: Side) -> u64 {
     let mut attacks = 0u64;
-    let bitboard = as_bitboard(square);
+    let bitboard = bitboard_from_square(square);
 
     match side {
         Side::White => {
@@ -171,7 +171,7 @@ fn mask_pawn_attacks(square: i32, side: Side) -> u64 {
 
 fn mask_knight_attacks(square: i32) -> u64 {
     let mut attacks = 0u64;
-    let bitboard = as_bitboard(square);
+    let bitboard = bitboard_from_square(square);
 
     if bitboard & NOT_A_FILE != 0 {
         attacks = set_bit(attacks, square - 17);
@@ -195,7 +195,7 @@ fn mask_knight_attacks(square: i32) -> u64 {
 
 fn mask_king_attacks(square: i32) -> u64 {
     let mut attacks = 0u64;
-    let bitboard = as_bitboard(square);
+    let bitboard = bitboard_from_square(square);
 
     attacks = set_bit(attacks, square - 8);
     attacks = set_bit(attacks, square + 8);

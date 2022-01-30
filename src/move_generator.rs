@@ -182,7 +182,7 @@ fn generate_pawn_moves(board: &Board, side: Side) -> Vec<Move> {
         bitboard = pop_bit(bitboard, source_square);
 
         let target_square = source_square + one_square;
-        if as_bitboard(target_square) & all_occupancies == 0 {
+        if bitboard_from_square(target_square) & all_occupancies == 0 {
             let rank = source_square / 8;
 
             if rank == back_rank {
@@ -196,7 +196,7 @@ fn generate_pawn_moves(board: &Board, side: Side) -> Vec<Move> {
             // We also need to make sure we are on the start rank.
             if rank == start_rank {
                 let target_square = source_square + two_squares;
-                if as_bitboard(target_square) & all_occupancies == 0 {
+                if bitboard_from_square(target_square) & all_occupancies == 0 {
                     moves.push(Move::simple(source_square, target_square));
                 }
             }
@@ -207,7 +207,7 @@ fn generate_pawn_moves(board: &Board, side: Side) -> Vec<Move> {
             let target_square = least_significant_bit_index(attacks) as i32;
             attacks = pop_bit(attacks, target_square);
 
-            if as_bitboard(target_square) & opp_occupancies == 1 {
+            if bitboard_from_square(target_square) & opp_occupancies == 1 {
                 if source_square / 8 == back_rank {
                     moves.push(Move::promotion(source_square, target_square, true));
                 } else {
