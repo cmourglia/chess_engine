@@ -1,16 +1,24 @@
 #![feature(variant_count)]
+
+use ascii_view::*;
+use bitboard::*;
+use board::*;
+use move_generator::generate_moves;
+use squares::*;
+
 mod ascii_view;
 mod attacks;
 mod bitboard;
 mod board;
 mod codegen;
 mod fens;
+mod move_generator;
 mod rand;
 mod squares;
 
 fn main() {
-    //find_magic_number(e4, relevant_bits, is_bishop)
-    let attacks = crate::attacks::Attacks::new();
+    let board = Board::from_fen(fens::STARTING_BOARD_FEN);
 
-    println!("{:?}", attacks);
+    let moves = generate_moves(&board);
+    println!("{}", moves.len());
 }

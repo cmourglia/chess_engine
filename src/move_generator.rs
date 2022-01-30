@@ -1,3 +1,4 @@
+use std::alloc::handle_alloc_error;
 use std::fmt::Display;
 
 use crate::bitboard::*;
@@ -134,6 +135,8 @@ pub fn is_square_attacked(board: &Board, square: i32, attacking_side: Side) -> b
 pub fn generate_moves(board: &Board) -> Vec<Move> {
     let mut moves = vec![];
 
+    let start_time = std::time::Instant::now();
+
     match board.side_to_move {
         Side::White => {
             moves.append(&mut generate_pawn_moves(board, Side::White));
@@ -146,13 +149,21 @@ pub fn generate_moves(board: &Board) -> Vec<Move> {
         Side::Both => unreachable!(),
     }
 
+    moves.append(&mut generate_knight_moves(board, board.side_to_move));
+    moves.append(&mut generate_bishop_moves(board, board.side_to_move));
+    moves.append(&mut generate_rook_moves(board, board.side_to_move));
+    moves.append(&mut generate_queen_moves(board, board.side_to_move));
+    moves.append(&mut generate_king_moves(board, board.side_to_move));
+
+    let dt = start_time.elapsed();
+    println!("Move generation took {}ms", dt.as_micros() as f64 * 1e-3);
+
     moves
 }
 
 fn generate_pawn_moves(board: &Board, side: Side) -> Vec<Move> {
     // Cache relevant data
     let all_occupancies = board.occupancies[Side::Both as usize];
-    let my_occupancies = board.occupancies[side as usize];
     let opp_occupancies = board.occupancies[opponent_side(side) as usize];
     let en_passant_square = board.en_passant_square;
 
@@ -184,7 +195,7 @@ fn generate_pawn_moves(board: &Board, side: Side) -> Vec<Move> {
         bitboard = pop_bit(bitboard, source_square);
 
         let target_square = source_square + one_square;
-        if bitboard_from_square(target_square) & all_occupancies == 0 {
+        if !bits_collide(bitboard_from_square(target_square), all_occupancies) {
             let rank = source_square / 8;
 
             if rank == back_rank {
@@ -198,7 +209,7 @@ fn generate_pawn_moves(board: &Board, side: Side) -> Vec<Move> {
             // We also need to make sure we are on the start rank.
             if rank == start_rank {
                 let target_square = source_square + two_squares;
-                if bitboard_from_square(target_square) & all_occupancies == 0 {
+                if !bits_collide(bitboard_from_square(target_square), all_occupancies) {
                     moves.push(Move::simple(source_square, target_square));
                 }
             }
@@ -209,7 +220,7 @@ fn generate_pawn_moves(board: &Board, side: Side) -> Vec<Move> {
             let target_square = least_significant_bit_index(attacks) as i32;
             attacks = pop_bit(attacks, target_square);
 
-            if bitboard_from_square(target_square) & opp_occupancies == 1 {
+            if bits_collide(bitboard_from_square(target_square), opp_occupancies) {
                 if source_square / 8 == back_rank {
                     moves.push(Move::promotion(source_square, target_square, true));
                 } else {
@@ -282,7 +293,7 @@ fn can_castle(board: &Board, squares: &[i32], occupancy: u64, opponent_side: Sid
     let mut ok = true;
     for square in squares {
         let bitboard = bitboard_from_square(*square);
-        if bitboard & occupancy != 0 {
+        if bits_collide(bitboard, occupancy) {
             ok = false;
             break;
         }
@@ -294,4 +305,147 @@ fn can_castle(board: &Board, squares: &[i32], occupancy: u64, opponent_side: Sid
     }
 
     ok
+}
+
+fn handle_attacks(
+    initial_attacks: u64,
+    initial_square: i32,
+    my_occupancy: u64,
+    opponent_occupancy: u64,
+) -> Vec<Move> {
+    let mut moves = vec![];
+    let mut attacks = initial_attacks;
+
+    while attacks != 0 {
+        let attacked_square = least_significant_bit_index(attacks) as i32;
+        attacks = pop_bit(attacks, attacked_square);
+
+        let attacked_bitboard = bitboard_from_square(attacked_square);
+
+        if bits_collide(attacked_bitboard, opponent_occupancy) {
+            moves.push(Move::capture(initial_square, attacked_square));
+        } else if !bits_collide(attacked_bitboard, my_occupancy) {
+            moves.push(Move::simple(initial_square, attacked_square));
+        }
+    }
+
+    moves
+}
+
+fn generate_knight_moves(board: &Board, side: Side) -> Vec<Move> {
+    let mut moves = vec![];
+
+    let my_occupancy = board.occupancies[side as usize];
+    let opponent_occupancy = board.occupancies[opponent_side(side) as usize];
+
+    let mut knights = board.bitboard(Piece::Knight, side);
+
+    while knights != 0 {
+        let square = least_significant_bit_index(knights) as i32;
+        knights = pop_bit(knights, square);
+
+        let attacks = board.attacks.get_knight_attacks(square);
+        moves.append(&mut handle_attacks(
+            attacks,
+            square,
+            my_occupancy,
+            opponent_occupancy,
+        ));
+    }
+
+    moves
+}
+
+fn generate_bishop_moves(board: &Board, side: Side) -> Vec<Move> {
+    let mut moves = vec![];
+
+    let occupancy = board.occupancies[Side::Both as usize];
+    let my_occupancy = board.occupancies[side as usize];
+    let opponent_occupancy = board.occupancies[opponent_side(side) as usize];
+
+    let mut bishops = board.bitboard(Piece::Bishop, side);
+
+    while bishops != 0 {
+        let square = least_significant_bit_index(bishops) as i32;
+        bishops = pop_bit(bishops, square);
+
+        let attacks = board.attacks.get_bishop_attacks(square, occupancy);
+        moves.append(&mut handle_attacks(
+            attacks,
+            square,
+            my_occupancy,
+            opponent_occupancy,
+        ));
+    }
+
+    moves
+}
+
+fn generate_rook_moves(board: &Board, side: Side) -> Vec<Move> {
+    let mut moves = vec![];
+
+    let occupancy = board.occupancies[Side::Both as usize];
+    let my_occupancy = board.occupancies[side as usize];
+    let opponent_occupancy = board.occupancies[opponent_side(side) as usize];
+
+    let mut rooks = board.bitboard(Piece::Rook, side);
+
+    while rooks != 0 {
+        let square = least_significant_bit_index(rooks) as i32;
+        rooks = pop_bit(rooks, square);
+
+        let attacks = board.attacks.get_rook_attacks(square, occupancy);
+        moves.append(&mut handle_attacks(
+            attacks,
+            square,
+            my_occupancy,
+            opponent_occupancy,
+        ));
+    }
+
+    moves
+}
+
+fn generate_queen_moves(board: &Board, side: Side) -> Vec<Move> {
+    let mut moves = vec![];
+
+    let occupancy = board.occupancies[Side::Both as usize];
+    let my_occupancy = board.occupancies[side as usize];
+    let opponent_occupancy = board.occupancies[opponent_side(side) as usize];
+
+    let mut queens = board.bitboard(Piece::Queen, side);
+
+    while queens != 0 {
+        let square = least_significant_bit_index(queens) as i32;
+        queens = pop_bit(queens, square);
+
+        let attacks = board.attacks.get_queen_attacks(square, occupancy);
+        moves.append(&mut handle_attacks(
+            attacks,
+            square,
+            my_occupancy,
+            opponent_occupancy,
+        ));
+    }
+
+    moves
+}
+
+fn generate_king_moves(board: &Board, side: Side) -> Vec<Move> {
+    let mut moves = vec![];
+
+    let my_occupancy = board.occupancies[side as usize];
+    let opponent_occupancy = board.occupancies[opponent_side(side) as usize];
+
+    let king = board.bitboard(Piece::King, side);
+    let square = least_significant_bit_index(king) as i32;
+
+    let attacks = board.attacks.get_king_attacks(square);
+    let possible_moves = handle_attacks(attacks, square, my_occupancy, opponent_occupancy);
+    possible_moves
+        .iter()
+        .filter(|mv| !is_square_attacked(board, mv.target_square, opponent_side(side)))
+        .for_each(|mv| moves.push(*mv));
+
+    moves
 }
