@@ -60,7 +60,7 @@ pub const fn least_significant_bit_index(bitboard: u64) -> usize {
         usize::MAX
     } else {
         let bits = bitboard as i64;
-        let bits = bits & -bits;
+        let bits = bits & bits.wrapping_neg();
         bit_count(bits as u64 - 1)
     }
 }
