@@ -143,6 +143,8 @@ pub fn generate_moves(board: &Board) -> Vec<Move> {
         }
         Side::Both => unreachable!(),
     }
+
+    moves
 }
 
 fn generate_pawn_moves(board: &Board, side: Side) -> Vec<Move> {
