@@ -94,3 +94,18 @@ pub fn print_attacked_squares(board: &Board, side: Side) {
     println!("      ---------------");
     println!("      a b c d e f g h\n");
 }
+
+pub fn print_move(mv: i32) {
+    println!(
+        "{}{} {} (capture: {}, en-passant: {}, castles: {}, double push: {}, promotion: {} ({}))",
+        CELL_NAMES[Move::decode_src_square(mv) as usize],
+        CELL_NAMES[Move::decode_dst_square(mv) as usize],
+        PIECE_TABLE[Move::decode_piece(mv) as usize],
+        Move::is_capture(mv),
+        Move::is_en_passant(mv),
+        Move::is_castling(mv),
+        Move::is_double_push(mv),
+        Move::is_promotion(mv),
+        PIECE_TABLE[Move::decode_promotion_piece(mv) as usize],
+    );
+}

@@ -1,85 +1,112 @@
-use std::alloc::handle_alloc_error;
-use std::fmt::Display;
-
 use crate::bitboard::*;
 use crate::board::*;
-use crate::squares;
 
-#[derive(Clone, Copy, Debug)]
-pub struct Move {
-    source_square: i32,
-    target_square: i32,
-    is_capture: bool,
-    is_castle: bool,
-    is_en_passant: bool,
-    is_promotion: bool,
-}
+/// Move encoding on an i32
+///
+/// 0000 0000 0000 0000 0000 0000 0011 1111 (    0x3F) -> Source square
+/// 0000 0000 0000 0000 0000 1111 1100 0000 (   0xFC0) -> Destination square
+/// 0000 0000 0000 0000 1111 0000 0000 0000 (  0xF000) -> Piece
+/// 0000 0000 0000 1111 0000 0000 0000 0000 ( 0xF0000) -> Promotion resulting piece
+/// 0000 0000 0001 0000 0000 0000 0000 0000 (0x100000) -> Capture flag
+/// 0000 0000 0010 0000 0000 0000 0000 0000 (0x200000) -> Double push flag
+/// 0000 0000 0100 0000 0000 0000 0000 0000 (0x400000) -> En-passant flag
+/// 0000 0000 1000 0000 0000 0000 0000 0000 (0x800000) -> Castling flag
+
+const SRC_SQUARE_MASK: i32 = 0x3F;
+const DST_SQUARE_MASK: i32 = 0xFC0;
+const PIECE_MASK: i32 = 0xF000;
+const PROMOTION_PIECE_MASK: i32 = 0xF0000;
+const CAPTURE_FLAG_MASK: i32 = 0x100000;
+const DOUBLE_PUSH_FLAG_MASK: i32 = 0x200000;
+const EN_PASSANT_FLAG_MASK: i32 = 0x400000;
+const CASTLING_FLAG_MASK: i32 = 0x800000;
+
+const SRC_SQUARE_BIT_OFFSET: i32 = 0;
+const DST_SQUARE_BIT_OFFSET: i32 = 6;
+const PIECE_BIT_OFFSET: i32 = 12;
+const PROMOTION_PIECE_BIT_OFFSET: i32 = 16;
+const CAPTURE_FLAG_BIT_OFFSET: i32 = 20;
+const DOUBLE_PUSH_FLAG_BIT_OFFSET: i32 = 21;
+const EN_PASSANT_FLAG_BIT_OFFSET: i32 = 22;
+const CASTLING_FLAG_BIT_OFFSET: i32 = 23;
+
+pub struct Move {}
 
 impl Move {
-    fn simple(source_square: i32, target_square: i32) -> Self {
-        Self {
-            source_square,
-            target_square,
-            is_capture: false,
-            is_castle: false,
-            is_en_passant: false,
-            is_promotion: false,
-        }
+    pub fn encode(piece: Piece, src_square: i32, dst_square: i32) -> i32 {
+        let mut mv = 0i32;
+
+        mv |= src_square << SRC_SQUARE_BIT_OFFSET;
+        mv |= dst_square << DST_SQUARE_BIT_OFFSET;
+        mv |= (piece as i32) << PIECE_BIT_OFFSET;
+
+        mv
     }
 
-    fn capture(source_square: i32, target_square: i32) -> Self {
-        Self {
-            source_square,
-            target_square,
-            is_capture: true,
-            is_castle: false,
-            is_en_passant: false,
-            is_promotion: false,
-        }
+    pub fn encode_capture(piece: Piece, src_square: i32, dst_square: i32) -> i32 {
+        Move::encode(piece, src_square, dst_square) | 1 << CAPTURE_FLAG_BIT_OFFSET
     }
 
-    fn castle(source_square: i32, target_square: i32) -> Self {
-        Self {
-            source_square,
-            target_square,
-            is_capture: false,
-            is_castle: true,
-            is_en_passant: false,
-            is_promotion: false,
-        }
+    pub fn encode_castling(piece: Piece, src_square: i32, dst_square: i32) -> i32 {
+        Move::encode(piece, src_square, dst_square) | 1 << CASTLING_FLAG_BIT_OFFSET
     }
 
-    fn en_passant(source_square: i32, target_square: i32) -> Self {
-        Self {
-            source_square,
-            target_square,
-            is_capture: true,
-            is_castle: false,
-            is_en_passant: true,
-            is_promotion: false,
-        }
+    pub fn encode_en_passant(piece: Piece, src_square: i32, dst_square: i32) -> i32 {
+        Move::encode(piece, src_square, dst_square) | 1 << EN_PASSANT_FLAG_BIT_OFFSET
     }
 
-    fn promotion(source_square: i32, target_square: i32, is_capture: bool) -> Self {
-        Self {
-            source_square,
-            target_square,
-            is_capture,
-            is_castle: false,
-            is_en_passant: false,
-            is_promotion: true,
-        }
-    }
-}
+    pub fn encode_promotion(
+        piece: Piece,
+        src_square: i32,
+        dst_square: i32,
+        with_capture: bool,
+    ) -> i32 {
+        let mut mv = Move::encode(piece, src_square, dst_square);
 
-impl Display for Move {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}{}",
-            squares::CELL_NAMES[self.source_square as usize],
-            squares::CELL_NAMES[self.target_square as usize],
-        )
+        mv |= 0xF << PROMOTION_PIECE_BIT_OFFSET;
+        mv |= (with_capture as i32) << CAPTURE_FLAG_BIT_OFFSET;
+
+        mv
+    }
+
+    pub fn encode_double_push(piece: Piece, src_square: i32, dst_square: i32) -> i32 {
+        Move::encode(piece, src_square, dst_square) | 1 << DOUBLE_PUSH_FLAG_BIT_OFFSET
+    }
+
+    pub fn decode_src_square(mv: i32) -> i32 {
+        (mv & SRC_SQUARE_MASK) >> SRC_SQUARE_BIT_OFFSET
+    }
+
+    pub fn decode_dst_square(mv: i32) -> i32 {
+        (mv & DST_SQUARE_MASK) >> DST_SQUARE_BIT_OFFSET
+    }
+
+    pub fn decode_piece(mv: i32) -> Piece {
+        Piece::from((mv & PIECE_MASK) >> PIECE_BIT_OFFSET)
+    }
+
+    pub fn decode_promotion_piece(mv: i32) -> Piece {
+        Piece::from((mv & PROMOTION_PIECE_MASK) >> PROMOTION_PIECE_BIT_OFFSET)
+    }
+
+    pub fn is_promotion(mv: i32) -> bool {
+        mv & PROMOTION_PIECE_MASK != 0
+    }
+
+    pub fn is_capture(mv: i32) -> bool {
+        mv & CAPTURE_FLAG_MASK != 0
+    }
+
+    pub fn is_double_push(mv: i32) -> bool {
+        mv & DOUBLE_PUSH_FLAG_MASK != 0
+    }
+
+    pub fn is_en_passant(mv: i32) -> bool {
+        mv & EN_PASSANT_FLAG_MASK != 0
+    }
+
+    pub fn is_castling(mv: i32) -> bool {
+        mv & CASTLING_FLAG_MASK != 0
     }
 }
 
@@ -132,28 +159,28 @@ pub fn is_square_attacked(board: &Board, square: i32, attacking_side: Side) -> b
     false
 }
 
-pub fn generate_moves(board: &Board) -> Vec<Move> {
+pub fn generate_moves(board: &Board) -> Vec<i32> {
     let mut moves = vec![];
 
     let start_time = std::time::Instant::now();
 
     match board.side_to_move {
         Side::White => {
-            moves.append(&mut generate_pawn_moves(board, Side::White));
+            moves.append(&mut generate_pawns(board, Side::White));
             moves.append(&mut generate_king_castles(board, Side::White));
         }
         Side::Black => {
-            moves.append(&mut generate_pawn_moves(board, Side::Black));
+            moves.append(&mut generate_pawns(board, Side::Black));
             moves.append(&mut generate_king_castles(board, Side::Black));
         }
         Side::Both => unreachable!(),
     }
 
-    moves.append(&mut generate_knight_moves(board, board.side_to_move));
-    moves.append(&mut generate_bishop_moves(board, board.side_to_move));
-    moves.append(&mut generate_rook_moves(board, board.side_to_move));
-    moves.append(&mut generate_queen_moves(board, board.side_to_move));
-    moves.append(&mut generate_king_moves(board, board.side_to_move));
+    moves.append(&mut generate_knights(board, board.side_to_move));
+    moves.append(&mut generate_bishops(board, board.side_to_move));
+    moves.append(&mut generate_rooks(board, board.side_to_move));
+    moves.append(&mut generate_queens(board, board.side_to_move));
+    moves.append(&mut generate_kings(board, board.side_to_move));
 
     let dt = start_time.elapsed();
     println!("Move generation took {}ms", dt.as_micros() as f64 * 1e-3);
@@ -161,7 +188,7 @@ pub fn generate_moves(board: &Board) -> Vec<Move> {
     moves
 }
 
-fn generate_pawn_moves(board: &Board, side: Side) -> Vec<Move> {
+fn generate_pawns(board: &Board, side: Side) -> Vec<i32> {
     // Cache relevant data
     let all_occupancies = board.occupancies[Side::Both as usize];
     let opp_occupancies = board.occupancies[opponent_side(side) as usize];
@@ -191,46 +218,60 @@ fn generate_pawn_moves(board: &Board, side: Side) -> Vec<Move> {
     let mut moves = vec![];
 
     while bitboard != 0 {
-        let source_square = least_significant_bit_index(bitboard) as i32;
-        bitboard = pop_bit(bitboard, source_square);
+        let src_square = least_significant_bit_index(bitboard) as i32;
+        bitboard = pop_bit(bitboard, src_square);
 
-        let target_square = source_square + one_square;
-        if !bits_collide(bitboard_from_square(target_square), all_occupancies) {
-            let rank = source_square / 8;
+        let dst_square = src_square + one_square;
+        if !bits_collide(bitboard_from_square(dst_square), all_occupancies) {
+            let rank = src_square / 8;
 
             if rank == back_rank {
-                moves.push(Move::promotion(source_square, target_square, false));
+                moves.push(Move::encode_promotion(
+                    Piece::Pawn,
+                    src_square,
+                    dst_square,
+                    false,
+                ));
             } else {
-                moves.push(Move::simple(source_square, target_square));
+                moves.push(Move::encode(Piece::Pawn, src_square, dst_square));
             }
 
             // The two squares move is only relevant if there is already no
             // blocker for the one square move.
             // We also need to make sure we are on the start rank.
             if rank == start_rank {
-                let target_square = source_square + two_squares;
-                if !bits_collide(bitboard_from_square(target_square), all_occupancies) {
-                    moves.push(Move::simple(source_square, target_square));
+                let dst_square = src_square + two_squares;
+                if !bits_collide(bitboard_from_square(dst_square), all_occupancies) {
+                    moves.push(Move::encode_double_push(
+                        Piece::Pawn,
+                        src_square,
+                        dst_square,
+                    ));
                 }
             }
         }
 
-        let mut attacks = board.attacks.get_pawn_attacks(source_square, side);
+        let mut attacks = board.attacks.get_pawn_attacks(src_square, side);
         while attacks != 0 {
-            let target_square = least_significant_bit_index(attacks) as i32;
-            attacks = pop_bit(attacks, target_square);
+            let dst_square = least_significant_bit_index(attacks) as i32;
+            attacks = pop_bit(attacks, dst_square);
 
-            if bits_collide(bitboard_from_square(target_square), opp_occupancies) {
-                if source_square / 8 == back_rank {
-                    moves.push(Move::promotion(source_square, target_square, true));
+            if bits_collide(bitboard_from_square(dst_square), opp_occupancies) {
+                if src_square / 8 == back_rank {
+                    moves.push(Move::encode_promotion(
+                        Piece::Pawn,
+                        src_square,
+                        dst_square,
+                        true,
+                    ));
                 } else {
-                    moves.push(Move::capture(source_square, target_square));
+                    moves.push(Move::encode_capture(Piece::Pawn, src_square, dst_square));
                 }
-            } else if en_passant_square == target_square {
+            } else if en_passant_square == dst_square {
                 // This test would be relevant only on 4th and 5th ranks, but it might
                 // be more costly to perform a division than just test directly
                 // with data already loaded...
-                moves.push(Move::en_passant(source_square, target_square));
+                moves.push(Move::encode_en_passant(Piece::Pawn, src_square, dst_square));
             }
         }
     }
@@ -238,7 +279,7 @@ fn generate_pawn_moves(board: &Board, side: Side) -> Vec<Move> {
     moves
 }
 
-fn generate_king_castles(board: &Board, side: Side) -> Vec<Move> {
+fn generate_king_castles(board: &Board, side: Side) -> Vec<i32> {
     let king_bitboard = board.bitboard(Piece::King, side);
     let king_square = least_significant_bit_index(king_bitboard) as i32;
     let opponent_side = opponent_side(side);
@@ -274,7 +315,11 @@ fn generate_king_castles(board: &Board, side: Side) -> Vec<Move> {
         let squares = [king_square + 1, king_square + 2];
 
         if can_castle(board, &squares, all_occupancies, opponent_side) {
-            moves.push(Move::castle(king_square, king_square + 2));
+            moves.push(Move::encode_castling(
+                Piece::King,
+                king_square,
+                king_square + 2,
+            ));
         }
     }
 
@@ -282,7 +327,11 @@ fn generate_king_castles(board: &Board, side: Side) -> Vec<Move> {
         let squares = [king_square - 1, king_square - 2, king_square - 3];
 
         if can_castle(board, &squares, all_occupancies, opponent_side) {
-            moves.push(Move::castle(king_square, king_square - 2));
+            moves.push(Move::encode_castling(
+                Piece::King,
+                king_square,
+                king_square - 2,
+            ));
         }
     }
 
@@ -308,11 +357,12 @@ fn can_castle(board: &Board, squares: &[i32], occupancy: u64, opponent_side: Sid
 }
 
 fn handle_attacks(
+    piece: Piece,
     initial_attacks: u64,
     initial_square: i32,
     my_occupancy: u64,
     opponent_occupancy: u64,
-) -> Vec<Move> {
+) -> Vec<i32> {
     let mut moves = vec![];
     let mut attacks = initial_attacks;
 
@@ -323,16 +373,16 @@ fn handle_attacks(
         let attacked_bitboard = bitboard_from_square(attacked_square);
 
         if bits_collide(attacked_bitboard, opponent_occupancy) {
-            moves.push(Move::capture(initial_square, attacked_square));
+            moves.push(Move::encode_capture(piece, initial_square, attacked_square));
         } else if !bits_collide(attacked_bitboard, my_occupancy) {
-            moves.push(Move::simple(initial_square, attacked_square));
+            moves.push(Move::encode(piece, initial_square, attacked_square));
         }
     }
 
     moves
 }
 
-fn generate_knight_moves(board: &Board, side: Side) -> Vec<Move> {
+fn generate_knights(board: &Board, side: Side) -> Vec<i32> {
     let mut moves = vec![];
 
     let my_occupancy = board.occupancies[side as usize];
@@ -346,6 +396,7 @@ fn generate_knight_moves(board: &Board, side: Side) -> Vec<Move> {
 
         let attacks = board.attacks.get_knight_attacks(square);
         moves.append(&mut handle_attacks(
+            Piece::Knight,
             attacks,
             square,
             my_occupancy,
@@ -356,7 +407,7 @@ fn generate_knight_moves(board: &Board, side: Side) -> Vec<Move> {
     moves
 }
 
-fn generate_bishop_moves(board: &Board, side: Side) -> Vec<Move> {
+fn generate_bishops(board: &Board, side: Side) -> Vec<i32> {
     let mut moves = vec![];
 
     let occupancy = board.occupancies[Side::Both as usize];
@@ -371,6 +422,7 @@ fn generate_bishop_moves(board: &Board, side: Side) -> Vec<Move> {
 
         let attacks = board.attacks.get_bishop_attacks(square, occupancy);
         moves.append(&mut handle_attacks(
+            Piece::Bishop,
             attacks,
             square,
             my_occupancy,
@@ -381,7 +433,7 @@ fn generate_bishop_moves(board: &Board, side: Side) -> Vec<Move> {
     moves
 }
 
-fn generate_rook_moves(board: &Board, side: Side) -> Vec<Move> {
+fn generate_rooks(board: &Board, side: Side) -> Vec<i32> {
     let mut moves = vec![];
 
     let occupancy = board.occupancies[Side::Both as usize];
@@ -396,6 +448,7 @@ fn generate_rook_moves(board: &Board, side: Side) -> Vec<Move> {
 
         let attacks = board.attacks.get_rook_attacks(square, occupancy);
         moves.append(&mut handle_attacks(
+            Piece::Rook,
             attacks,
             square,
             my_occupancy,
@@ -406,7 +459,7 @@ fn generate_rook_moves(board: &Board, side: Side) -> Vec<Move> {
     moves
 }
 
-fn generate_queen_moves(board: &Board, side: Side) -> Vec<Move> {
+fn generate_queens(board: &Board, side: Side) -> Vec<i32> {
     let mut moves = vec![];
 
     let occupancy = board.occupancies[Side::Both as usize];
@@ -421,6 +474,7 @@ fn generate_queen_moves(board: &Board, side: Side) -> Vec<Move> {
 
         let attacks = board.attacks.get_queen_attacks(square, occupancy);
         moves.append(&mut handle_attacks(
+            Piece::Queen,
             attacks,
             square,
             my_occupancy,
@@ -431,7 +485,7 @@ fn generate_queen_moves(board: &Board, side: Side) -> Vec<Move> {
     moves
 }
 
-fn generate_king_moves(board: &Board, side: Side) -> Vec<Move> {
+fn generate_kings(board: &Board, side: Side) -> Vec<i32> {
     let mut moves = vec![];
 
     let my_occupancy = board.occupancies[side as usize];
@@ -441,10 +495,22 @@ fn generate_king_moves(board: &Board, side: Side) -> Vec<Move> {
     let square = least_significant_bit_index(king) as i32;
 
     let attacks = board.attacks.get_king_attacks(square);
-    let possible_moves = handle_attacks(attacks, square, my_occupancy, opponent_occupancy);
-    possible_moves
+    let possibles = handle_attacks(
+        Piece::King,
+        attacks,
+        square,
+        my_occupancy,
+        opponent_occupancy,
+    );
+    possibles
         .iter()
-        .filter(|mv| !is_square_attacked(board, mv.target_square, opponent_side(side)))
+        .filter(|mv| {
+            !is_square_attacked(
+                board,
+                (*mv & DST_SQUARE_MASK) >> DST_SQUARE_BIT_OFFSET,
+                opponent_side(side),
+            )
+        })
         .for_each(|mv| moves.push(*mv));
 
     moves

@@ -1,3 +1,4 @@
+use num_enum::FromPrimitive;
 use phf::phf_map;
 
 use crate::attacks::Attacks;
@@ -5,7 +6,10 @@ use crate::bitboard::*;
 use crate::codegen::get_square;
 use crate::squares::*;
 
+#[derive(Clone, Copy, Eq, PartialEq, FromPrimitive)]
+#[repr(i32)]
 pub enum Piece {
+    #[num_enum(default)]
     Pawn,
     Knight,
     Bishop,
