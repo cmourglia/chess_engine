@@ -4,6 +4,7 @@ use phf::phf_map;
 use crate::attacks::Attacks;
 use crate::bitboard::*;
 use crate::codegen::get_square;
+use crate::move_generator::*;
 use crate::squares::*;
 
 #[derive(Clone, Copy, Eq, PartialEq, FromPrimitive)]
@@ -73,7 +74,8 @@ pub fn opponent_side(side: Side) -> Side {
     }
 }
 
-pub struct Board {
+#[derive(Clone, Copy)]
+pub struct Board<'a> {
     /// One bitboard per piece type, which keeps track of every piece
     /// of this given type.
     /// e.g. white knights starting bitboard is given by B1 | G1.
@@ -100,11 +102,11 @@ pub struct Board {
     pub castling_rights: u8,
 
     /// Attack maps
-    pub attacks: Attacks,
+    pub attacks: &'a Attacks,
 }
 
-impl Board {
-    pub fn from_fen(fen: &str) -> Self {
+impl<'a> Board<'a> {
+    pub fn from_fen(fen: &str, attacks: &'a Attacks) -> Self {
         let mut pieces = [0u64; 12];
 
         let mut fen_iter = fen.split(' ');
@@ -160,8 +162,6 @@ impl Board {
 
         // TODO: Handle 50 moves rule parsing
 
-        let attacks = Attacks::new();
-
         Self {
             pieces,
             occupancies,
@@ -175,6 +175,11 @@ impl Board {
     pub fn bitboard(&self, piece: Piece, side: Side) -> u64 {
         let index = piece as usize + side as usize * std::mem::variant_count::<Piece>();
         self.pieces[index]
+    }
+
+    pub fn mut_bitboard(&mut self, piece: Piece, side: Side) -> &mut u64 {
+        let index = piece as usize + side as usize * std::mem::variant_count::<Piece>();
+        &mut self.pieces[index]
     }
 
     pub fn get_occupancy(pieces: &[u64; 12], side: Side) -> u64 {
@@ -191,5 +196,51 @@ impl Board {
         }
 
         result
+    }
+
+    pub fn play_move(&mut self, mv: i32) -> Self {
+        // TODO: Check the perf of this call.
+        let current_state = self.clone();
+
+        // Reset state
+        self.en_passant_square = NO_SQUARE;
+
+        let piece = Move::decode_piece(mv);
+
+        let src_square = Move::decode_src_square(mv);
+        let src_bitbard = bitboard_from_square(src_square);
+
+        let dst_square = Move::decode_dst_square(mv);
+
+        let mut bitboard = self.mut_bitboard(piece, self.side_to_move);
+        Board::apply_move_to_bitboard(bitboard, src_square, dst_square);
+
+        let mut my_occupancy = &mut self.occupancies[self.side_to_move as usize];
+        Board::apply_move_to_bitboard(my_occupancy, src_square, dst_square);
+
+        let mut all_occupancy = &mut self.occupancies[Side::Both as usize];
+        Board::apply_move_to_bitboard(all_occupancy, src_square, dst_square);
+
+        if Move::is_double_push(mv) {
+            self.en_passant_square = match self.side_to_move {
+                Side::White => dst_square + 8,
+                Side::Black => dst_square - 8,
+                Side::Both => unreachable!(),
+            };
+        }
+
+        // Castling rights
+        // Is it a rook move ?
+
+        // Is it a king move ?
+
+        self.side_to_move = opponent_side(self.side_to_move);
+
+        current_state
+    }
+
+    fn apply_move_to_bitboard(bitboard: &mut u64, src_square: i32, dst_square: i32) {
+        *bitboard = pop_bit(*bitboard, src_square);
+        *bitboard = set_bit(*bitboard, dst_square);
     }
 }
