@@ -172,10 +172,6 @@ impl Board {
         }
     }
 
-    pub fn new() -> Self {
-        Self::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-    }
-
     pub fn bitboard(&self, piece: Piece, side: Side) -> u64 {
         let index = piece as usize + side as usize * std::mem::variant_count::<Piece>();
         self.pieces[index]
