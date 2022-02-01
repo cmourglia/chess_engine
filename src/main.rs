@@ -28,8 +28,8 @@ fn run_depth(board: &Board, depth: i32, results: &mut [usize; 10]) {
 
     results[(depth - 1) as usize] += moves.len();
 
-    for mv in moves {
-        let old_board = my_board.play_move(mv);
+    for mv in moves.moves() {
+        let old_board = my_board.play_move(*mv);
         run_depth(&my_board, depth - 1, results);
         my_board = old_board
     }

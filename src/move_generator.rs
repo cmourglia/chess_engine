@@ -159,8 +159,35 @@ pub fn is_square_attacked(board: &Board, square: i32, attacking_side: Side) -> b
     false
 }
 
-pub fn generate_moves(board: &Board) -> Vec<i32> {
-    let mut moves = Vec::with_capacity(100);
+pub struct Moves {
+    moves: [i32; 256],
+    move_count: usize,
+}
+
+impl Moves {
+    pub fn new() -> Self {
+        Self {
+            moves: [0i32; 256],
+            move_count: 0,
+        }
+    }
+
+    pub fn push(&mut self, value: i32) {
+        self.moves[self.move_count] = value;
+        self.move_count += 1;
+    }
+
+    pub fn moves(&self) -> &[i32] {
+        &self.moves[0..self.move_count]
+    }
+
+    pub fn len(&self) -> usize {
+        self.move_count
+    }
+}
+
+pub fn generate_moves(board: &Board) -> Moves {
+    let mut moves = Moves::new();
 
     match board.side_to_move {
         Side::White => {
@@ -183,7 +210,7 @@ pub fn generate_moves(board: &Board) -> Vec<i32> {
     moves
 }
 
-fn generate_pawns(board: &Board, side: Side, moves: &mut Vec<i32>) {
+fn generate_pawns(board: &Board, side: Side, moves: &mut Moves) {
     // Cache relevant data
     let all_occupancies = board.occupancies[Side::Both as usize];
     let opp_occupancies = board.occupancies[opponent_side(side) as usize];
@@ -246,32 +273,34 @@ fn generate_pawns(board: &Board, side: Side, moves: &mut Vec<i32>) {
         }
 
         let mut attacks = board.attacks.get_pawn_attacks(src_square, side);
-        while attacks != 0 {
-            let dst_square = least_significant_bit_index(attacks) as i32;
-            attacks = pop_bit(attacks, dst_square);
+        if bits_collide(attacks, opp_occupancies) {
+            while attacks != 0 {
+                let dst_square = least_significant_bit_index(attacks) as i32;
+                attacks = pop_bit(attacks, dst_square);
 
-            if bits_collide(bitboard_from_square(dst_square), opp_occupancies) {
-                if src_square / 8 == back_rank {
-                    moves.push(Move::encode_promotion(
-                        Piece::Pawn,
-                        src_square,
-                        dst_square,
-                        true,
-                    ));
-                } else {
-                    moves.push(Move::encode_capture(Piece::Pawn, src_square, dst_square));
+                if bits_collide(bitboard_from_square(dst_square), opp_occupancies) {
+                    if src_square / 8 == back_rank {
+                        moves.push(Move::encode_promotion(
+                            Piece::Pawn,
+                            src_square,
+                            dst_square,
+                            true,
+                        ));
+                    } else {
+                        moves.push(Move::encode_capture(Piece::Pawn, src_square, dst_square));
+                    }
+                } else if en_passant_square == dst_square {
+                    // This test would be relevant only on 4th and 5th ranks, but it might
+                    // be more costly to perform a division than just test directly
+                    // with data already loaded...
+                    moves.push(Move::encode_en_passant(Piece::Pawn, src_square, dst_square));
                 }
-            } else if en_passant_square == dst_square {
-                // This test would be relevant only on 4th and 5th ranks, but it might
-                // be more costly to perform a division than just test directly
-                // with data already loaded...
-                moves.push(Move::encode_en_passant(Piece::Pawn, src_square, dst_square));
             }
         }
     }
 }
 
-fn generate_king_castles(board: &Board, side: Side, moves: &mut Vec<i32>) {
+fn generate_king_castles(board: &Board, side: Side, moves: &mut Moves) {
     let king_bitboard = board.bitboard(Piece::King, side);
     let king_square = least_significant_bit_index(king_bitboard) as i32;
     let opponent_side = opponent_side(side);
@@ -350,7 +379,7 @@ fn handle_attacks(
     initial_square: i32,
     my_occupancy: u64,
     opponent_occupancy: u64,
-    moves: &mut Vec<i32>,
+    moves: &mut Moves,
 ) {
     let mut attacks = initial_attacks;
 
@@ -368,7 +397,7 @@ fn handle_attacks(
     }
 }
 
-fn generate_knights(board: &Board, side: Side, moves: &mut Vec<i32>) {
+fn generate_knights(board: &Board, side: Side, moves: &mut Moves) {
     let my_occupancy = board.occupancies[side as usize];
     let opponent_occupancy = board.occupancies[opponent_side(side) as usize];
 
@@ -390,7 +419,7 @@ fn generate_knights(board: &Board, side: Side, moves: &mut Vec<i32>) {
     }
 }
 
-fn generate_bishops(board: &Board, side: Side, moves: &mut Vec<i32>) {
+fn generate_bishops(board: &Board, side: Side, moves: &mut Moves) {
     let occupancy = board.occupancies[Side::Both as usize];
     let my_occupancy = board.occupancies[side as usize];
     let opponent_occupancy = board.occupancies[opponent_side(side) as usize];
@@ -413,7 +442,7 @@ fn generate_bishops(board: &Board, side: Side, moves: &mut Vec<i32>) {
     }
 }
 
-fn generate_rooks(board: &Board, side: Side, moves: &mut Vec<i32>) {
+fn generate_rooks(board: &Board, side: Side, moves: &mut Moves) {
     let occupancy = board.occupancies[Side::Both as usize];
     let my_occupancy = board.occupancies[side as usize];
     let opponent_occupancy = board.occupancies[opponent_side(side) as usize];
@@ -436,7 +465,7 @@ fn generate_rooks(board: &Board, side: Side, moves: &mut Vec<i32>) {
     }
 }
 
-fn generate_queens(board: &Board, side: Side, moves: &mut Vec<i32>) {
+fn generate_queens(board: &Board, side: Side, moves: &mut Moves) {
     let occupancy = board.occupancies[Side::Both as usize];
     let my_occupancy = board.occupancies[side as usize];
     let opponent_occupancy = board.occupancies[opponent_side(side) as usize];
@@ -459,7 +488,7 @@ fn generate_queens(board: &Board, side: Side, moves: &mut Vec<i32>) {
     }
 }
 
-fn generate_kings(board: &Board, side: Side, moves: &mut Vec<i32>) {
+fn generate_kings(board: &Board, side: Side, moves: &mut Moves) {
     let my_occupancy = board.occupancies[side as usize];
     let opponent_occupancy = board.occupancies[opponent_side(side) as usize];
 
