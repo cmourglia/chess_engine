@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::bitboard::*;
 use crate::board::*;
 use crate::move_generator::*;
