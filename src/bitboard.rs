@@ -41,26 +41,18 @@ pub const fn pop_bit(bitboard: u64, square: i32) -> u64 {
     bitboard & !bitboard_from_square(square)
 }
 
-pub const fn bit_count(bitboard: u64) -> usize {
-    let mut bits = bitboard;
-    let mut bit_counter = 0;
-    while bits != 0 {
-        bits &= bits - 1;
-        bit_counter += 1;
-    }
-    bit_counter
+pub const fn bit_count(bitboard: u64) -> u32 {
+    bitboard.count_ones()
 }
 
 pub const fn bits_collide(bitboard_a: u64, bitboard_b: u64) -> bool {
     bitboard_a & bitboard_b != 0
 }
 
-pub const fn least_significant_bit_index(bitboard: u64) -> usize {
-    if bitboard == 0 {
-        usize::MAX
-    } else {
-        let bits = bitboard as i64;
-        let bits = bits & bits.wrapping_neg();
-        bit_count(bits as u64 - 1)
-    }
+pub const fn lsb(bitboard: u64) -> u64 {
+    bitboard & 0u64.wrapping_sub(bitboard)
+}
+
+pub const fn lsb_index(bitboard: u64) -> u32 {
+    bitboard.trailing_zeros()
 }

@@ -239,7 +239,7 @@ fn generate_pawns(board: &Board, side: Side, moves: &mut Moves) {
     let mut bitboard = board.bitboard(Piece::Pawn, side);
 
     while bitboard != 0 {
-        let src_square = least_significant_bit_index(bitboard) as i32;
+        let src_square = lsb_index(bitboard) as i32;
         bitboard = pop_bit(bitboard, src_square);
 
         let dst_square = src_square + one_square;
@@ -275,7 +275,7 @@ fn generate_pawns(board: &Board, side: Side, moves: &mut Moves) {
         let mut attacks = board.attacks.get_pawn_attacks(src_square, side);
         if bits_collide(attacks, opp_occupancies) {
             while attacks != 0 {
-                let dst_square = least_significant_bit_index(attacks) as i32;
+                let dst_square = lsb_index(attacks) as i32;
                 attacks = pop_bit(attacks, dst_square);
 
                 if bits_collide(bitboard_from_square(dst_square), opp_occupancies) {
@@ -302,7 +302,7 @@ fn generate_pawns(board: &Board, side: Side, moves: &mut Moves) {
 
 fn generate_king_castles(board: &Board, side: Side, moves: &mut Moves) {
     let king_bitboard = board.bitboard(Piece::King, side);
-    let king_square = least_significant_bit_index(king_bitboard) as i32;
+    let king_square = lsb_index(king_bitboard) as i32;
     let opponent_side = opponent_side(side);
 
     // For some reason, we have no king...
@@ -384,7 +384,7 @@ fn handle_attacks(
     let mut attacks = initial_attacks;
 
     while attacks != 0 {
-        let attacked_square = least_significant_bit_index(attacks) as i32;
+        let attacked_square = lsb_index(attacks) as i32;
         attacks = pop_bit(attacks, attacked_square);
 
         let attacked_bitboard = bitboard_from_square(attacked_square);
@@ -404,7 +404,7 @@ fn generate_knights(board: &Board, side: Side, moves: &mut Moves) {
     let mut knights = board.bitboard(Piece::Knight, side);
 
     while knights != 0 {
-        let square = least_significant_bit_index(knights) as i32;
+        let square = lsb_index(knights) as i32;
         knights = pop_bit(knights, square);
 
         let attacks = board.attacks.get_knight_attacks(square);
@@ -427,7 +427,7 @@ fn generate_bishops(board: &Board, side: Side, moves: &mut Moves) {
     let mut bishops = board.bitboard(Piece::Bishop, side);
 
     while bishops != 0 {
-        let square = least_significant_bit_index(bishops) as i32;
+        let square = lsb_index(bishops) as i32;
         bishops = pop_bit(bishops, square);
 
         let attacks = board.attacks.get_bishop_attacks(square, occupancy);
@@ -450,7 +450,7 @@ fn generate_rooks(board: &Board, side: Side, moves: &mut Moves) {
     let mut rooks = board.bitboard(Piece::Rook, side);
 
     while rooks != 0 {
-        let square = least_significant_bit_index(rooks) as i32;
+        let square = lsb_index(rooks) as i32;
         rooks = pop_bit(rooks, square);
 
         let attacks = board.attacks.get_rook_attacks(square, occupancy);
@@ -473,7 +473,7 @@ fn generate_queens(board: &Board, side: Side, moves: &mut Moves) {
     let mut queens = board.bitboard(Piece::Queen, side);
 
     while queens != 0 {
-        let square = least_significant_bit_index(queens) as i32;
+        let square = lsb_index(queens) as i32;
         queens = pop_bit(queens, square);
 
         let attacks = board.attacks.get_queen_attacks(square, occupancy);
@@ -493,12 +493,12 @@ fn generate_kings(board: &Board, side: Side, moves: &mut Moves) {
     let opponent_occupancy = board.occupancies[opponent_side(side) as usize];
 
     let king = board.bitboard(Piece::King, side);
-    let square = least_significant_bit_index(king) as i32;
+    let square = lsb_index(king) as i32;
 
     let mut attacks = board.attacks.get_king_attacks(square);
 
     while attacks != 0 {
-        let attacked_square = least_significant_bit_index(attacks) as i32;
+        let attacked_square = lsb_index(attacks) as i32;
         attacks = pop_bit(attacks, attacked_square);
 
         let attacked_bitboard = bitboard_from_square(attacked_square);

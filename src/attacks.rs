@@ -376,8 +376,8 @@ fn generate_king_attacks() -> [u64; 64] {
     result
 }
 
-fn generate_bishop_occupancies() -> [usize; 64] {
-    let mut result = [0usize; 64];
+fn generate_bishop_occupancies() -> [u32; 64] {
+    let mut result = [0u32; 64];
 
     for square in 0..64 {
         result[square] = bit_count(mask_bishop_attacks(square as i32));
@@ -386,8 +386,8 @@ fn generate_bishop_occupancies() -> [usize; 64] {
     result
 }
 
-fn generate_rook_occupancies() -> [usize; 64] {
-    let mut result = [0usize; 64];
+fn generate_rook_occupancies() -> [u32; 64] {
+    let mut result = [0u32; 64];
 
     for square in 0..64 {
         result[square] = bit_count(mask_rook_attacks(square as i32));
@@ -396,12 +396,12 @@ fn generate_rook_occupancies() -> [usize; 64] {
     result
 }
 
-fn set_occupancy(index: usize, bits_in_mask: usize, attack_mask: u64) -> u64 {
+fn set_occupancy(index: usize, bits_in_mask: u32, attack_mask: u64) -> u64 {
     let mut occupancy = 0u64;
     let mut mask = attack_mask;
 
     for count in 0..bits_in_mask {
-        let square = least_significant_bit_index(mask) as i32;
+        let square = lsb_index(mask) as i32;
         mask = pop_bit(mask, square);
 
         if index & (1 << count) != 0 {
@@ -415,7 +415,7 @@ fn set_occupancy(index: usize, bits_in_mask: usize, attack_mask: u64) -> u64 {
 fn find_magic_number(
     random_state: u32,
     square: i32,
-    relevant_bits: usize,
+    relevant_bits: u32,
     is_bishop: bool,
 ) -> (u64, u32) {
     use crate::rand::next_magic_candidate;
@@ -480,7 +480,7 @@ fn find_magic_number(
     }
 }
 
-fn generate_bishop_magic_numbers(occupancies: &[usize; 64]) -> [u64; 64] {
+fn generate_bishop_magic_numbers(occupancies: &[u32; 64]) -> [u64; 64] {
     let mut result = [0u64; 64];
 
     let mut random_state = 1804289383;
@@ -497,7 +497,7 @@ fn generate_bishop_magic_numbers(occupancies: &[usize; 64]) -> [u64; 64] {
     result
 }
 
-fn generate_rook_magic_numbers(occupancies: &[usize; 64]) -> [u64; 64] {
+fn generate_rook_magic_numbers(occupancies: &[u32; 64]) -> [u64; 64] {
     let mut result = [0u64; 64];
 
     let mut random_state = 1804289383;
@@ -575,8 +575,8 @@ impl SlidingMasks {
 
 #[derive(Debug)]
 struct Occupancies {
-    bishop: [usize; 64],
-    rook: [usize; 64],
+    bishop: [u32; 64],
+    rook: [u32; 64],
 }
 
 impl Occupancies {
