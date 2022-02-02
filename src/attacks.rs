@@ -147,20 +147,20 @@ fn mask_pawn_attacks(square: i32, side: Side) -> u64 {
     match side {
         Side::White => {
             if bitboard & NOT_A_FILE != 0 {
-                attacks = set_bit(attacks, square - 9);
+                attacks |= bitboard_from_square(square - 9);
             }
 
             if bitboard & NOT_H_FILE != 0 {
-                attacks = set_bit(attacks, square - 7);
+                attacks |= bitboard_from_square(square - 7);
             }
         }
         Side::Black => {
             if bitboard & NOT_A_FILE != 0 {
-                attacks = set_bit(attacks, square + 7);
+                attacks |= bitboard_from_square(square + 7);
             }
 
             if bitboard & NOT_H_FILE != 0 {
-                attacks = set_bit(attacks, square + 9);
+                attacks |= bitboard_from_square(square + 9);
             }
         }
         _ => {}
@@ -174,20 +174,20 @@ fn mask_knight_attacks(square: i32) -> u64 {
     let bitboard = bitboard_from_square(square);
 
     if bitboard & NOT_A_FILE != 0 {
-        attacks = set_bit(attacks, square - 17);
-        attacks = set_bit(attacks, square + 15);
+        attacks |= bitboard_from_square(square - 17);
+        attacks |= bitboard_from_square(square + 15);
     }
     if bitboard & NOT_AB_FILE != 0 {
-        attacks = set_bit(attacks, square - 10);
-        attacks = set_bit(attacks, square + 6);
+        attacks |= bitboard_from_square(square - 10);
+        attacks |= bitboard_from_square(square + 6);
     }
     if bitboard & NOT_GH_FILE != 0 {
-        attacks = set_bit(attacks, square - 6);
-        attacks = set_bit(attacks, square + 10);
+        attacks |= bitboard_from_square(square - 6);
+        attacks |= bitboard_from_square(square + 10);
     }
     if bitboard & NOT_H_FILE != 0 {
-        attacks = set_bit(attacks, square - 15);
-        attacks = set_bit(attacks, square + 17);
+        attacks |= bitboard_from_square(square - 15);
+        attacks |= bitboard_from_square(square + 17);
     }
 
     attacks
@@ -197,17 +197,17 @@ fn mask_king_attacks(square: i32) -> u64 {
     let mut attacks = 0u64;
     let bitboard = bitboard_from_square(square);
 
-    attacks = set_bit(attacks, square - 8);
-    attacks = set_bit(attacks, square + 8);
+    attacks |= bitboard_from_square(square - 8);
+    attacks |= bitboard_from_square(square + 8);
     if bitboard & NOT_A_FILE != 0 {
-        attacks = set_bit(attacks, square - 9);
-        attacks = set_bit(attacks, square - 1);
-        attacks = set_bit(attacks, square + 7);
+        attacks |= bitboard_from_square(square - 9);
+        attacks |= bitboard_from_square(square - 1);
+        attacks |= bitboard_from_square(square + 7);
     }
     if bitboard & NOT_H_FILE != 0 {
-        attacks = set_bit(attacks, square + 9);
-        attacks = set_bit(attacks, square + 1);
-        attacks = set_bit(attacks, square - 7);
+        attacks |= bitboard_from_square(square + 9);
+        attacks |= bitboard_from_square(square + 1);
+        attacks |= bitboard_from_square(square - 7);
     }
 
     attacks
@@ -220,19 +220,19 @@ pub fn mask_bishop_attacks(square: i32) -> u64 {
     let file = square % 8;
 
     for (i, j) in (1..rank).rev().zip((1..file).rev()) {
-        attacks = set_bit(attacks, get_square(i, j));
+        attacks |= bitboard_from_square(get_square(i, j));
     }
 
     for (i, j) in (1..rank).rev().zip(file + 1..7) {
-        attacks = set_bit(attacks, get_square(i, j));
+        attacks |= bitboard_from_square(get_square(i, j));
     }
 
     for (i, j) in (rank + 1..7).zip((1..file).rev()) {
-        attacks = set_bit(attacks, get_square(i, j));
+        attacks |= bitboard_from_square(get_square(i, j));
     }
 
     for (i, j) in (rank + 1..7).zip(file + 1..7) {
-        attacks = set_bit(attacks, get_square(i, j));
+        attacks |= bitboard_from_square(get_square(i, j));
     }
 
     attacks
@@ -245,19 +245,19 @@ fn mask_rook_attacks(square: i32) -> u64 {
     let file = square % 8;
 
     for i in (1..rank).rev() {
-        attacks = set_bit(attacks, get_square(i, file));
+        attacks |= bitboard_from_square(get_square(i, file));
     }
 
     for i in (1..file).rev() {
-        attacks = set_bit(attacks, get_square(rank, i));
+        attacks |= bitboard_from_square(get_square(rank, i));
     }
 
     for i in rank + 1..7 {
-        attacks = set_bit(attacks, get_square(i, file));
+        attacks |= bitboard_from_square(get_square(i, file));
     }
 
     for i in file + 1..7 {
-        attacks = set_bit(attacks, get_square(rank, i));
+        attacks |= bitboard_from_square(get_square(rank, i));
     }
 
     attacks
@@ -271,7 +271,7 @@ fn bishop_attacks_on_the_fly(square: i32, blocker: u64) -> u64 {
 
     for (i, j) in (0..rank).rev().zip((0..file).rev()) {
         let curr_square = get_square(i, j);
-        attacks = set_bit(attacks, curr_square);
+        attacks |= bitboard_from_square(curr_square);
         if get_bit(blocker, curr_square) {
             break;
         }
@@ -279,7 +279,7 @@ fn bishop_attacks_on_the_fly(square: i32, blocker: u64) -> u64 {
 
     for (i, j) in (0..rank).rev().zip(file + 1..8) {
         let curr_square = get_square(i, j);
-        attacks = set_bit(attacks, curr_square);
+        attacks |= bitboard_from_square(curr_square);
         if get_bit(blocker, curr_square) {
             break;
         }
@@ -287,7 +287,7 @@ fn bishop_attacks_on_the_fly(square: i32, blocker: u64) -> u64 {
 
     for (i, j) in (rank + 1..8).zip((0..file).rev()) {
         let curr_square = get_square(i, j);
-        attacks = set_bit(attacks, curr_square);
+        attacks |= bitboard_from_square(curr_square);
         if get_bit(blocker, curr_square) {
             break;
         }
@@ -295,7 +295,7 @@ fn bishop_attacks_on_the_fly(square: i32, blocker: u64) -> u64 {
 
     for (i, j) in (rank + 1..8).zip(file + 1..8) {
         let curr_square = get_square(i, j);
-        attacks = set_bit(attacks, curr_square);
+        attacks |= bitboard_from_square(curr_square);
         if get_bit(blocker, curr_square) {
             break;
         }
@@ -312,7 +312,7 @@ fn rook_attacks_on_the_fly(square: i32, blocker: u64) -> u64 {
 
     for i in (0..rank).rev() {
         let curr_square = get_square(i, file);
-        attacks = set_bit(attacks, curr_square);
+        attacks |= bitboard_from_square(curr_square);
         if get_bit(blocker, curr_square) {
             break;
         }
@@ -320,7 +320,7 @@ fn rook_attacks_on_the_fly(square: i32, blocker: u64) -> u64 {
 
     for i in (0..file).rev() {
         let curr_square = get_square(rank, i);
-        attacks = set_bit(attacks, curr_square);
+        attacks |= bitboard_from_square(curr_square);
         if get_bit(blocker, curr_square) {
             break;
         }
@@ -328,7 +328,7 @@ fn rook_attacks_on_the_fly(square: i32, blocker: u64) -> u64 {
 
     for i in rank + 1..8 {
         let curr_square = get_square(i, file);
-        attacks = set_bit(attacks, curr_square);
+        attacks |= bitboard_from_square(curr_square);
         if get_bit(blocker, curr_square) {
             break;
         }
@@ -336,7 +336,7 @@ fn rook_attacks_on_the_fly(square: i32, blocker: u64) -> u64 {
 
     for i in file + 1..8 {
         let curr_square = get_square(rank, i);
-        attacks = set_bit(attacks, curr_square);
+        attacks |= bitboard_from_square(curr_square);
         if get_bit(blocker, curr_square) {
             break;
         }
@@ -405,7 +405,7 @@ fn set_occupancy(index: usize, bits_in_mask: u32, attack_mask: u64) -> u64 {
         mask = pop_bit(mask, square);
 
         if index & (1 << count) != 0 {
-            occupancy = set_bit(occupancy, square);
+            occupancy |= bitboard_from_square(square);
         }
     }
 

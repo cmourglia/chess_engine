@@ -31,7 +31,7 @@ pub const fn not_a_file() -> u64 {
     while rank < 8 {
         let mut file = 1;
         while file < 8 {
-            bitboard = set_bit(bitboard, get_square(rank, file));
+            bitboard |= bitboard_from_square(get_square(rank, file));
             file += 1;
         }
         rank += 1;
@@ -46,7 +46,7 @@ pub const fn not_h_file() -> u64 {
     while rank < 8 {
         let mut file = 0;
         while file < 7 {
-            bitboard = set_bit(bitboard, get_square(rank, file));
+            bitboard |= bitboard_from_square(get_square(rank, file));
             file += 1;
         }
         rank += 1;
@@ -61,7 +61,7 @@ pub const fn not_ab_file() -> u64 {
     while rank < 8 {
         let mut file = 2;
         while file < 8 {
-            bitboard = set_bit(bitboard, get_square(rank, file));
+            bitboard |= bitboard_from_square(get_square(rank, file));
             file += 1;
         }
         rank += 1;
@@ -76,7 +76,7 @@ pub const fn not_gh_file() -> u64 {
     while rank < 8 {
         let mut file = 0;
         while file < 6 {
-            bitboard = set_bit(bitboard, get_square(rank, file));
+            bitboard |= bitboard_from_square(get_square(rank, file));
             file += 1;
         }
         rank += 1;

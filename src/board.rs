@@ -118,7 +118,7 @@ impl<'a> Board<'a> {
             for c in line.chars() {
                 if let Some(piece) = ASCII_TO_PIECE.get(&c) {
                     let piece_idx = *piece as usize;
-                    pieces[piece_idx] = set_bit(pieces[piece_idx], get_square(rank as i32, file));
+                    pieces[piece_idx] |= bitboard_from_square(get_square(rank as i32, file));
                     file += 1;
                 } else {
                     if c.is_numeric() {
@@ -241,6 +241,6 @@ impl<'a> Board<'a> {
 
     fn apply_move_to_bitboard(bitboard: &mut u64, src_square: i32, dst_square: i32) {
         *bitboard = pop_bit(*bitboard, src_square);
-        *bitboard = set_bit(*bitboard, dst_square);
+        *bitboard |= bitboard_from_square(dst_square);
     }
 }

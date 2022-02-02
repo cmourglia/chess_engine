@@ -29,10 +29,6 @@ pub const fn get_bit(bitboard: u64, square: i32) -> bool {
     bitboard & bitboard_from_square(square) != 0
 }
 
-pub const fn set_bit(bitboard: u64, square: i32) -> u64 {
-    bitboard | bitboard_from_square(square)
-}
-
 pub const fn toggle_bit(bitboard: u64, square: i32) -> u64 {
     bitboard ^ bitboard_from_square(square)
 }
